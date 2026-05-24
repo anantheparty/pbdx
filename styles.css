@@ -386,6 +386,24 @@ body.resizingCanvas * { cursor: row-resize !important; }
   transition: opacity .18s ease, transform .18s ease;
   z-index: 10;
 }
+.kbd {
+  margin-left: 5px;
+  opacity: .55;
+  font-weight: 700;
+  font-size: .88em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: .2px;
+}
+u.kbd, .kbd u {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 2px;
+}
+@media (hover: none) and (pointer: coarse) {
+  /* 触屏没键盘，省地方 */
+  .kbd { display: none; }
+}
+
 .toast.show { opacity: 1; transform: translateY(0); }
 .toast.ok { background: var(--good); }
 .toast.warn { background: var(--warn); }
