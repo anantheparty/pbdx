@@ -21,6 +21,7 @@ const state = {
   isPainting: false,
   dirtyDuringStroke: false,
   countsSort: 'count-desc',
+  replaceTargetIndex: null,
 };
 
 const els = {};
@@ -32,7 +33,8 @@ for (const id of [
   'countsTable', 'metricsCards', 'selectedColorChip', 'selectedCellInfo', 'showGrid', 'showCodes', 'showCoords', 'showErrors',
   'highlightSelected', 'boardMajor', 'boardMinor', 'beadShape', 'zoomInBtn', 'zoomOutBtn', 'fitBtn', 'undoBtn', 'redoBtn', 'eraseBtn', 'brushBtn', 'panBtn', 'pickerBtn',
   'exportPbdxBtn', 'exportPngBtn', 'exportSvgBtn', 'exportCsvBtn', 'exportHtmlBtn', 'exportCellPx', 'previewImage', 'statusLine',
-  'autoRegenerate', 'zoomSensitivity', 'countsSort', 'replaceTarget', 'applyReplaceBtn',
+  'autoRegenerate', 'zoomSensitivity', 'countsSort', 'applyReplaceBtn',
+  'replaceTargetBtn', 'replaceTargetPopover', 'replaceTargetSearch', 'replaceTargetGrid',
 ]) els[id] = $(id);
 
 function toast(message, tone = 'info') {
@@ -165,18 +167,97 @@ function updateCountsTable() {
   }
 }
 
-function updateReplaceTarget() {
+function renderReplaceTargetButton() {
+  const btn = els.replaceTargetBtn;
+  if (!btn) return;
   const palette = state.pattern?.palette ?? currentPalette();
-  if (!els.replaceTarget) return;
-  const prev = els.replaceTarget.value;
-  const options = ['<option value="-1">空格 / 留空</option>'];
+  const idx = state.replaceTargetIndex;
+  if (idx === null || idx === undefined) {
+    btn.innerHTML = '<span class="chipSwatch empty"></span><b>选目标色</b>';
+    return;
+  }
+  if (idx === EMPTY) {
+    btn.innerHTML = '<span class="chipSwatch empty"></span><b>空格 / 留空</b>';
+    return;
+  }
+  const c = palette.colors[idx];
+  if (!c) {
+    state.replaceTargetIndex = null;
+    btn.innerHTML = '<span class="chipSwatch empty"></span><b>选目标色</b>';
+    return;
+  }
+  btn.innerHTML = `<span class="chipSwatch" style="background:${c.hex}"></span><b>${displayCode(palette, c)}</b><em>${c.hex}</em>`;
+}
+
+function renderReplaceTargetPopover() {
+  if (!els.replaceTargetGrid) return;
+  const palette = state.pattern?.palette ?? currentPalette();
+  const query = (els.replaceTargetSearch?.value ?? '').trim().toLowerCase();
+  const grid = els.replaceTargetGrid;
+  grid.innerHTML = '';
+  const mkBtn = (className, swatchHtml, label, onClick, title) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `paletteSwatch ${className}`;
+    if (title) b.title = title;
+    b.innerHTML = `${swatchHtml}<b>${label}</b>`;
+    b.addEventListener('click', onClick);
+    return b;
+  };
+  if (!query || '空格留空empty'.includes(query)) {
+    grid.appendChild(mkBtn(
+      state.replaceTargetIndex === EMPTY ? 'selected' : '',
+      '<span class="chipSwatch empty" style="width:18px;height:18px"></span>',
+      '空格',
+      () => { setReplaceTarget(EMPTY); closeReplaceTargetPopover(); },
+      '空格 / 留空',
+    ));
+  }
   for (let i = 0; i < palette.colors.length; i++) {
     const c = palette.colors[i];
-    const code = displayCode(palette, c);
-    options.push(`<option value="${i}">${code}${c.name && c.name !== c.code ? ' · ' + c.name : ''}</option>`);
+    const text = `${c.code} ${c.name ?? ''} ${c.hex}`.toLowerCase();
+    if (query && !text.includes(query)) continue;
+    grid.appendChild(mkBtn(
+      state.replaceTargetIndex === i ? 'selected' : '',
+      `<span style="background:${c.hex}"></span>`,
+      displayCode(palette, c),
+      () => { setReplaceTarget(i); closeReplaceTargetPopover(); },
+      `${c.code} ${c.name ?? ''} ${c.hex}`,
+    ));
   }
-  els.replaceTarget.innerHTML = options.join('');
-  if (prev && palette.colors[Number(prev)]) els.replaceTarget.value = prev;
+}
+
+function setReplaceTarget(index) {
+  state.replaceTargetIndex = index;
+  renderReplaceTargetButton();
+}
+
+function openReplaceTargetPopover() {
+  if (!els.replaceTargetPopover) return;
+  els.replaceTargetPopover.hidden = false;
+  if (els.replaceTargetSearch) els.replaceTargetSearch.value = '';
+  renderReplaceTargetPopover();
+  els.replaceTargetSearch?.focus();
+}
+
+function closeReplaceTargetPopover() {
+  if (els.replaceTargetPopover) els.replaceTargetPopover.hidden = true;
+}
+
+function toggleReplaceTargetPopover() {
+  if (!els.replaceTargetPopover) return;
+  if (els.replaceTargetPopover.hidden) openReplaceTargetPopover();
+  else closeReplaceTargetPopover();
+}
+
+function refreshReplaceTarget() {
+  const palette = state.pattern?.palette ?? currentPalette();
+  if (state.replaceTargetIndex !== null && state.replaceTargetIndex !== undefined
+      && state.replaceTargetIndex !== EMPTY && !palette.colors[state.replaceTargetIndex]) {
+    state.replaceTargetIndex = null;
+  }
+  renderReplaceTargetButton();
+  if (els.replaceTargetPopover && !els.replaceTargetPopover.hidden) renderReplaceTargetPopover();
 }
 
 function updatePaletteGrid() {
@@ -250,16 +331,17 @@ function refreshAll() {
   updateCountsTable();
   updatePaletteGrid();
   updateSelectedChip();
-  updateReplaceTarget();
+  refreshReplaceTarget();
   render();
 }
 
 function applyColorReplace() {
   if (!state.pattern) { toast('还没有图纸。', 'warn'); return; }
   const src = state.selectedColorIndex;
-  const raw = els.replaceTarget?.value;
-  if (raw === undefined || raw === '') { toast('先选一个源色号。', 'warn'); return; }
-  const tgt = Number(raw);
+  if (state.replaceTargetIndex === null || state.replaceTargetIndex === undefined) {
+    toast('先选一个目标色号。', 'warn'); return;
+  }
+  const tgt = state.replaceTargetIndex;
   if (src === tgt) { toast('源色和目标色一样，没什么可替换的。', 'warn'); return; }
   const palette = state.pattern.palette;
   if (tgt !== EMPTY && !palette.colors[tgt]) { toast('目标色号无效。', 'error'); return; }
@@ -652,6 +734,21 @@ function setupEvents() {
   for (const id of ['showGrid', 'showCodes', 'showCoords', 'showErrors', 'highlightSelected', 'boardMajor', 'boardMinor', 'beadShape']) els[id].addEventListener('input', render);
   els.countsSort.addEventListener('change', () => { state.countsSort = els.countsSort.value; updateCountsTable(); });
   els.applyReplaceBtn.addEventListener('click', applyColorReplace);
+  els.replaceTargetBtn?.addEventListener('click', (e) => { e.stopPropagation(); toggleReplaceTargetPopover(); });
+  els.replaceTargetSearch?.addEventListener('input', renderReplaceTargetPopover);
+  els.replaceTargetPopover?.addEventListener('click', (e) => e.stopPropagation());
+  document.addEventListener('click', (e) => {
+    if (els.replaceTargetPopover && !els.replaceTargetPopover.hidden
+        && !e.target.closest('.replaceTargetPicker')) {
+      closeReplaceTargetPopover();
+    }
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && els.replaceTargetPopover && !els.replaceTargetPopover.hidden) {
+      closeReplaceTargetPopover();
+    }
+  });
+  setupSideNav();
   els.zoomInBtn.addEventListener('click', () => { state.view.scale = Math.min(80, state.view.scale * 1.25); render(); });
   els.zoomOutBtn.addEventListener('click', () => { state.view.scale = Math.max(1.5, state.view.scale / 1.25); render(); });
   els.fitBtn.addEventListener('click', () => { if (state.pattern) state.view = fitView(state.pattern, els.patternCanvas); render(); });
@@ -730,8 +827,45 @@ function init() {
   updateCountsTable();
   updatePaletteGrid();
   updateSelectedChip();
-  updateReplaceTarget();
+  refreshReplaceTarget();
   render();
+}
+
+function setupSideNav() {
+  const nav = document.getElementById('sideNav');
+  const sidePanel = document.querySelector('.sidePanel');
+  if (!nav || !sidePanel) return;
+  const links = [...nav.querySelectorAll('a[data-target]')];
+  const sections = links.map((a) => document.getElementById(a.dataset.target)).filter(Boolean);
+  for (const a of links) {
+    a.addEventListener('click', (e) => {
+      const target = document.getElementById(a.dataset.target);
+      if (!target) return;
+      e.preventDefault();
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setActiveSection(a.dataset.target);
+    });
+  }
+  function setActiveSection(id) {
+    for (const a of links) a.classList.toggle('active', a.dataset.target === id);
+  }
+  let raf = 0;
+  const onScroll = () => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      const navH = nav.getBoundingClientRect().height;
+      const probe = sidePanel.getBoundingClientRect().top + navH + 8;
+      let current = sections[0]?.id;
+      for (const s of sections) {
+        if (s.getBoundingClientRect().top - 1 <= probe) current = s.id;
+      }
+      if (current) setActiveSection(current);
+    });
+  };
+  sidePanel.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  onScroll();
 }
 
 init();

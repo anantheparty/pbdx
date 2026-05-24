@@ -21,7 +21,16 @@
 
   <main class="appShell">
     <aside class="sidePanel">
-      <section class="card">
+      <nav class="sideNav" id="sideNav">
+        <a href="#secImage" data-target="secImage">图片</a>
+        <a href="#secPalette" data-target="secPalette">色域</a>
+        <a href="#secParams" data-target="secParams">参数</a>
+        <a href="#secExport" data-target="secExport">导出</a>
+        <a href="#secCounts" data-target="secCounts">用豆统计</a>
+        <a href="#secSwatches" data-target="secSwatches">色卡</a>
+      </nav>
+
+      <section class="card" id="secImage">
         <h2>1 · 图片</h2>
         <label class="fileDrop">
           <input id="imageInput" type="file" accept="image/*" />
@@ -34,7 +43,7 @@
         <p id="statusLine" class="muted">还没载入图片。</p>
       </section>
 
-      <section class="card">
+      <section class="card" id="secPalette">
         <h2>2 · 色域与尺寸</h2>
         <label>色卡 / 标准
           <select id="paletteSelect"></select>
@@ -73,7 +82,7 @@
         </label>
       </section>
 
-      <section class="card">
+      <section class="card" id="secParams">
         <h2>3 · 施工友好参数</h2>
         <div class="presetGrid">
           <button data-preset="faithful" class="secondary">高还原</button>
@@ -129,6 +138,55 @@
         <progress id="progressBar" max="100" value="0"></progress>
         <p id="progressText" class="muted">等待开始。</p>
       </section>
+
+      <section class="card" id="secExport">
+        <h2>4 · 导出 / 发布</h2>
+        <label>导出每格像素
+          <input id="exportCellPx" type="number" min="6" max="60" value="20" />
+        </label>
+        <div class="exportGrid">
+          <button id="exportPbdxBtn" class="primary">导出 .pbdx</button>
+          <button id="exportPngBtn" class="secondary">PNG 图纸</button>
+          <button id="exportSvgBtn" class="secondary">SVG 图纸</button>
+          <button id="exportHtmlBtn" class="secondary">总览 HTML</button>
+          <button id="exportCsvBtn" class="secondary">用豆 CSV</button>
+        </div>
+      </section>
+
+      <section class="card" id="secCounts">
+        <h2>5 · 用豆统计 / 复杂度</h2>
+        <div id="metricsCards" class="metricsCards"></div>
+        <div class="countsToolbar">
+          <label>排序
+            <select id="countsSort">
+              <option value="count-desc">数量 ↓</option>
+              <option value="count-asc">数量 ↑</option>
+              <option value="hue">按色相</option>
+              <option value="code">按色号</option>
+            </select>
+          </label>
+          <div class="replaceRow">
+            <span class="muted">把当前色号替换为</span>
+            <div class="replaceTargetPicker">
+              <button id="replaceTargetBtn" type="button" class="replaceTargetBtn">
+                <span class="chipSwatch empty"></span><b>选目标色</b>
+              </button>
+              <div id="replaceTargetPopover" class="replaceTargetPopover" hidden>
+                <input id="replaceTargetSearch" type="search" placeholder="搜索色号 / HEX" />
+                <div id="replaceTargetGrid" class="paletteGrid replaceTargetGrid"></div>
+              </div>
+            </div>
+            <button id="applyReplaceBtn" class="secondary">应用替换</button>
+          </div>
+        </div>
+        <div id="countsTable" class="countsTable"></div>
+      </section>
+
+      <section class="card paletteCard" id="secSwatches">
+        <h2>6 · 色卡与手动改色</h2>
+        <input id="paletteSearch" type="search" placeholder="搜索色号 / HEX" />
+        <div id="paletteGrid" class="paletteGrid"></div>
+      </section>
     </aside>
 
     <section class="workspace">
@@ -158,72 +216,32 @@
 
       <div class="canvasResizer" id="canvasResizer" role="separator" aria-orientation="horizontal" title="拖动调整画布高度"></div>
 
-      <section class="lowerGrid">
-        <div class="card">
-          <h2>查看清晰度</h2>
-          <div class="twocol settingsSmall">
-            <label class="check"><input id="showGrid" type="checkbox" checked />网格</label>
-            <label class="check"><input id="showCodes" type="checkbox" checked />格内色号</label>
-            <label class="check"><input id="showCoords" type="checkbox" checked />行列坐标</label>
-            <label class="check"><input id="showErrors" type="checkbox" />高色差提示</label>
-            <label class="check"><input id="highlightSelected" type="checkbox" />高亮当前色号</label>
-            <label>板线粗 / 细
-              <div class="row gap">
-                <input id="boardMajor" type="number" min="0" max="200" value="10" title="粗线每多少格" />
-                <input id="boardMinor" type="number" min="0" max="200" value="5" title="细线每多少格" />
-              </div>
-            </label>
-            <label>形状
-              <select id="beadShape">
-                <option value="square">方格</option>
-                <option value="round">圆豆</option>
-              </select>
-            </label>
-          </div>
-          <label>滚轮缩放灵敏度 <output id="zoomSensitivityValue"></output>
-            <input id="zoomSensitivity" type="range" min="1.02" max="1.30" step="0.01" value="1.08" />
-            <small>每次滚轮的缩放比例，1.02 极柔和、1.30 接近原默认。</small>
-          </label>
-          <h2>导出/发布</h2>
-          <label>导出每格像素
-            <input id="exportCellPx" type="number" min="6" max="60" value="20" />
-          </label>
-          <div class="exportGrid">
-            <button id="exportPbdxBtn" class="primary">导出 .pbdx</button>
-            <button id="exportPngBtn" class="secondary">PNG 图纸</button>
-            <button id="exportSvgBtn" class="secondary">SVG 图纸</button>
-            <button id="exportHtmlBtn" class="secondary">总览 HTML</button>
-            <button id="exportCsvBtn" class="secondary">用豆 CSV</button>
-          </div>
-        </div>
-
-        <div class="card">
-          <h2>用豆统计 / 复杂度</h2>
-          <div id="metricsCards" class="metricsCards"></div>
-          <div class="countsToolbar">
-            <label>排序
-              <select id="countsSort">
-                <option value="count-desc">数量 ↓</option>
-                <option value="count-asc">数量 ↑</option>
-                <option value="hue">按色相</option>
-                <option value="code">按色号</option>
-              </select>
-            </label>
-            <div class="replaceRow">
-              <span class="muted">把当前色号替换为</span>
-              <select id="replaceTarget"></select>
-              <button id="applyReplaceBtn" class="secondary">应用替换</button>
+      <div class="card">
+        <h2>查看清晰度</h2>
+        <div class="twocol settingsSmall">
+          <label class="check"><input id="showGrid" type="checkbox" checked />网格</label>
+          <label class="check"><input id="showCodes" type="checkbox" checked />格内色号</label>
+          <label class="check"><input id="showCoords" type="checkbox" checked />行列坐标</label>
+          <label class="check"><input id="showErrors" type="checkbox" />高色差提示</label>
+          <label class="check"><input id="highlightSelected" type="checkbox" />高亮当前色号</label>
+          <label>板线粗 / 细
+            <div class="row gap">
+              <input id="boardMajor" type="number" min="0" max="200" value="10" title="粗线每多少格" />
+              <input id="boardMinor" type="number" min="0" max="200" value="5" title="细线每多少格" />
             </div>
-          </div>
-          <div id="countsTable" class="countsTable"></div>
+          </label>
+          <label>形状
+            <select id="beadShape">
+              <option value="square">方格</option>
+              <option value="round">圆豆</option>
+            </select>
+          </label>
         </div>
-
-        <div class="card paletteCard">
-          <h2>色卡与手动改色</h2>
-          <input id="paletteSearch" type="search" placeholder="搜索色号 / HEX" />
-          <div id="paletteGrid" class="paletteGrid"></div>
-        </div>
-      </section>
+        <label>滚轮缩放灵敏度 <output id="zoomSensitivityValue"></output>
+          <input id="zoomSensitivity" type="range" min="1.02" max="1.30" step="0.01" value="1.08" />
+          <small>每次滚轮的缩放比例，1.02 极柔和、1.30 接近原默认。</small>
+        </label>
+      </div>
     </section>
   </main>
 
