@@ -75,21 +75,34 @@ p { margin: 6px 0; }
   scrollbar-gutter: stable;
   scroll-behavior: smooth;
 }
-.sidePanel > section[id^="sec"] { scroll-margin-top: 64px; }
-.sideNav {
+.sidePanel > section[id^="sec"] { scroll-margin-top: 96px; }
+.sideHeader {
   position: sticky;
   top: 0;
-  z-index: 4;
+  z-index: 5;
+  display: grid;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(255, 250, 242, .94);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(130, 95, 55, .18);
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(80, 50, 30, .08);
+}
+.sideTitle {
+  margin: 0;
+  font-size: 20px;
+  letter-spacing: -0.02em;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ff7f9b, #a184f6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.sideNav {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  padding: 8px 10px;
-  margin-bottom: 4px;
-  background: rgba(255, 250, 242, .92);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(130, 95, 55, .18);
-  border-radius: 14px;
-  box-shadow: 0 6px 18px rgba(80, 50, 30, .08);
 }
 .sideNav a {
   text-decoration: none;
@@ -105,6 +118,20 @@ p { margin: 6px 0; }
 }
 .sideNav a:hover { background: #fff0f4; color: #b93258; border-color: var(--accent); }
 .sideNav a.active { background: linear-gradient(135deg, #ff7f9b, #a184f6); color: #fff; border-color: transparent; }
+.sideFooter { padding: 6px 4px 4px; text-align: center; }
+.sideFooter a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  text-decoration: none;
+  font-size: 12.5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  transition: color .15s ease, border-color .15s ease, background .15s ease;
+}
+.sideFooter a:hover { color: var(--ink); border-color: var(--line); background: #fff; }
 .workspace {
   overflow-y: auto;
   padding-right: 6px;
@@ -320,7 +347,7 @@ body.resizingCanvas * { cursor: row-resize !important; }
   .appShell { grid-template-columns: 1fr; overflow: visible; min-height: 0; }
   .sidePanel, .workspace { overflow-y: visible; padding-right: 0; }
   .workspace { grid-template-rows: auto minmax(420px, 56vh) 10px auto; }
-  .sideNav { position: static; }
+  .sideHeader { position: static; }
 }
 @media (max-width: 680px) {
   .twocol { grid-template-columns: 1fr; }

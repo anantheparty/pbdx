@@ -572,7 +572,10 @@ function setupCanvasEvents() {
     const rect = canvas.getBoundingClientRect();
     const mid = touchMid();
     const dist = touchDist();
-    const scale = Math.max(1.5, Math.min(80, pinchStartScale * (dist / pinchStartDist)));
+    const sens = Number(els.zoomSensitivity?.value) || 1.08;
+    const k = Math.max(0.25, Math.min(1, 0.3 + (sens - 1.02) / 0.28 * 0.7));
+    const attenuated = Math.pow(dist / pinchStartDist, k);
+    const scale = Math.max(1.5, Math.min(80, pinchStartScale * attenuated));
     const beforeX = (pinchAnchor.mx - pinchPanStart.ox) / pinchStartScale;
     const beforeY = (pinchAnchor.my - pinchPanStart.oy) / pinchStartScale;
     const dxPan = mid.x - pinchPanStart.mid.x;
