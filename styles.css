@@ -390,15 +390,172 @@ body.resizingCanvas * { cursor: row-resize !important; }
 .toast.ok { background: var(--good); }
 .toast.warn { background: var(--warn); }
 .toast.error { background: #b83232; }
-@media (max-width: 1100px) {
-  .appShell { grid-template-columns: 1fr; overflow: visible; min-height: 0; }
-  .sidePanel, .workspace { overflow-y: visible; padding-right: 0; }
-  .workspace { grid-template-rows: auto minmax(420px, 56vh) 10px auto; }
-  .sideStickyTop { position: static; }
+
+.modal {
+  position: fixed; inset: 0; z-index: 200;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
 }
-@media (max-width: 680px) {
-  .twocol { grid-template-columns: 1fr; }
+.modal[hidden] { display: none; }
+.modalBackdrop {
+  position: absolute; inset: 0;
+  background: rgba(60, 38, 22, .38);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+}
+.modalCard {
+  position: relative;
+  background: #fff;
+  border-radius: 18px;
+  padding: 22px 22px 18px;
+  width: min(480px, 100%);
+  max-height: 88vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 60px rgba(60, 30, 10, .28);
+}
+.modalCard h3 { margin: 0 0 10px; font-size: 18px; }
+.modalCard p { margin: 0 0 12px; line-height: 1.5; }
+.modalCard p.small, .small { font-size: 12px; }
+.modalActions {
+  display: flex; gap: 10px; justify-content: flex-end;
+  margin-top: 14px;
+}
+.modalCard textarea {
+  width: 100%; min-height: 84px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  resize: vertical;
+  box-sizing: border-box;
+  word-break: break-all;
+  background: #fafafa;
+}
+#confirmSuppress { margin-top: 4px; font-size: 13px; }
+#confirmSuppress[hidden] { display: none; }
+.mobileTabs { display: none; }
+
+@media (max-width: 1100px) and (min-width: 901px) {
+  .appShell { grid-template-columns: minmax(280px, 320px) 1fr; gap: 12px; padding: 12px; }
+}
+
+@media (max-width: 900px) {
+  html, body { height: 100dvh; min-height: 0; }
+  body {
+    overflow: hidden;
+    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
+  }
+  .appShell {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+    gap: 0;
+    padding: 8px;
+    min-height: 0;
+    overflow: hidden;
+    flex: 1;
+  }
+  .sidePanel, .workspace {
+    grid-column: 1;
+    grid-row: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-right: 0;
+    min-height: 0;
+    max-height: 100%;
+  }
+  .appShell.sideHidden .sidePanel { display: block; }
+  body[data-mtab="tools"] .workspace { display: none; }
+  body[data-mtab="canvas"] .sidePanel { display: none; }
+
+  .workspace {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .canvasWrap { min-height: 50vh; }
+  .canvasResizer { display: none; }
+  #sidebarToggleBtn { display: none; }
+
+  .sideStickyTop { position: sticky; top: 0; }
+  .sideTitle { font-size: 22px; padding: 11px 16px; border-radius: 14px; }
+  .sideTitle::after { width: 80px; height: 4px; }
+  .sideNav { padding: 6px; }
+
+  .toolbar { padding: 6px 8px; gap: 6px; }
+  .toolbar .toolGroup { gap: 4px; }
+  .toolbar button { padding: 6px 9px; font-size: 13px; }
+  .selectedChip { font-size: 12px; }
+  .cellInfo { display: none; }
+  .toolbarEnd { margin-left: auto; }
+
+  .viewSettings { padding: 6px 8px; gap: 6px; font-size: 12px; }
+  .viewSettings .vSep { display: none; }
+
+  .generateBar { bottom: 4px; padding: 8px 10px; }
+
+  .twocol { grid-template-columns: 1fr 1fr; }
   .metricsCards { grid-template-columns: repeat(2, 1fr); }
-  .toolbar { align-items: stretch; }
-  .cellInfo { margin-left: 0; }
+
+  .replaceTargetPopover { left: 0; right: auto; max-width: calc(100vw - 32px); }
+
+  .mobileTabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: rgba(255, 250, 242, .96);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(130, 95, 55, .22);
+    box-shadow: 0 -6px 18px rgba(80, 50, 30, .09);
+    z-index: 50;
+  }
+  .mobileTabs button {
+    border: 0;
+    background: transparent;
+    font-size: 13.5px;
+    font-weight: 700;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+  }
+  .mobileTabs button.active {
+    color: #b93258;
+    background: linear-gradient(180deg, rgba(255, 220, 230, 0) 0%, rgba(255, 220, 230, .55) 100%);
+  }
+  .mobileTabs button.active::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 18%; right: 18%;
+    height: 2px;
+    background: linear-gradient(90deg, #ff5d7e, #c764d1);
+    border-radius: 0 0 4px 4px;
+  }
+  .mobileTabs button { position: relative; }
+}
+
+@media (max-width: 600px) {
+  .twocol { grid-template-columns: 1fr; }
+  .presetGrid { grid-template-columns: repeat(2, 1fr); }
+  .exportGrid { grid-template-columns: 1fr 1fr; }
+  .replaceRow { flex-wrap: wrap; }
+  .toolbar button { padding: 6px 8px; font-size: 12.5px; }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  /* 触摸设备：避免悬停态卡住、保证按钮足够大 */
+  button, .check, label { -webkit-tap-highlight-color: transparent; }
+  .paletteSwatch { touch-action: manipulation; }
+  canvas { touch-action: none; }
 }

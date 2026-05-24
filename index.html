@@ -2,11 +2,12 @@
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#fbf2e6" />
   <title>拼豆图纸生成器 · Bead Pattern Studio</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
+<body data-mtab="tools">
   <main class="appShell" id="appShell">
     <aside class="sidePanel">
       <div class="sideStickyTop">
@@ -28,6 +29,7 @@
         </label>
         <div class="row gap">
           <button id="sampleBtn" class="secondary grow">加载示例图</button>
+          <button id="newBlankBtn" class="secondary grow">新建空白图纸</button>
           <img id="previewImage" alt="preview" hidden />
         </div>
         <div class="row gap">
@@ -144,11 +146,13 @@
         </label>
         <div class="exportGrid">
           <button id="exportPbdxBtn" class="primary">导出 .pbdx</button>
+          <button id="exportShareBtn" class="primary">分享链接</button>
           <button id="exportPngBtn" class="secondary">PNG 图纸</button>
           <button id="exportSvgBtn" class="secondary">SVG 图纸</button>
           <button id="exportHtmlBtn" class="secondary">总览 HTML</button>
           <button id="exportCsvBtn" class="secondary">用豆 CSV</button>
         </div>
+        <p class="muted small">分享链接只携带格子数据，对方需要有同名色卡（内置色卡自带）。</p>
       </section>
 
       <section class="card" id="secCounts">
@@ -256,6 +260,44 @@
       </div>
     </section>
   </main>
+
+  <div class="modal" id="confirmModal" hidden>
+    <div class="modalBackdrop" data-close></div>
+    <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <h3 id="confirmTitle">确认</h3>
+      <p id="confirmMsg" class="muted"></p>
+      <label class="check" id="confirmSuppress" hidden><input type="checkbox" /><span></span></label>
+      <div class="modalActions">
+        <button data-close class="secondary" id="confirmCancel">取消</button>
+        <button class="primary" id="confirmOk">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="shareModal" hidden>
+    <div class="modalBackdrop" data-close></div>
+    <div class="modalCard" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+      <h3 id="shareTitle">分享链接</h3>
+      <p class="muted" id="shareNote">把这条链接发给别人，对方打开就能直接看到这张图。</p>
+      <textarea id="shareUrl" readonly rows="3" spellcheck="false"></textarea>
+      <p class="muted small">链接长度 <output id="shareLength">0</output> 字符</p>
+      <div class="modalActions">
+        <button data-close class="secondary">关闭</button>
+        <button class="primary" id="shareCopyBtn">复制链接</button>
+      </div>
+    </div>
+  </div>
+
+  <nav class="mobileTabs" id="mobileTabs" aria-label="移动端面板切换">
+    <button type="button" data-tab="tools" class="active">
+      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="17" y2="6"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="14" x2="17" y2="14"/></svg>
+      <span>工具</span>
+    </button>
+    <button type="button" data-tab="canvas">
+      <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="14" height="14" rx="2"/><path d="M3 13l4-4 3 3 4-4 3 3"/></svg>
+      <span>画布</span>
+    </button>
+  </nav>
 
   <script type="module" src="src/app.js"></script>
 </body>

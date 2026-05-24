@@ -3,6 +3,7 @@ import { EMPTY, readableTextColor, normalizePalette, displayCode } from './color
 import { imageBlobToElement, generatePatternFromImage, computeMetrics } from './quantize.js';
 import { parsePattern, serializePattern, downloadText, downloadBlob, exportCountsCsv, parseAnyPaletteFile } from './format.js';
 import { fitView, renderPatternCanvas, cellAtPoint, makeExportCanvas, patternToSvg, printableHtml } from './render.js';
+import { encodePatternToShareCode, decodeShareCode } from './share.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -27,7 +28,7 @@ const state = {
 
 const els = {};
 for (const id of [
-  'paletteSelect', 'imageInput', 'sampleBtn', 'importPatternBtn', 'patternInput', 'importPaletteBtn', 'paletteInput',
+  'paletteSelect', 'imageInput', 'sampleBtn', 'newBlankBtn', 'importPatternBtn', 'patternInput', 'importPaletteBtn', 'paletteInput',
   'widthInput', 'heightInput', 'lockAspect', 'fitMode', 'backgroundMode', 'alphaThreshold', 'whiteCutoff',
   'maxColors', 'coherence', 'smoothPasses', 'minIsland', 'cleanupPasses', 'edgeProtect', 'mergeMaxDelta', 'ditherMode', 'ditherStrength',
   'metric', 'includeSpecial', 'generateBtn', 'progressBar', 'progressText', 'patternCanvas', 'paletteSearch', 'paletteGrid',
@@ -36,7 +37,9 @@ for (const id of [
   'exportPbdxBtn', 'exportPngBtn', 'exportSvgBtn', 'exportCsvBtn', 'exportHtmlBtn', 'exportCellPx', 'previewImage', 'statusLine',
   'autoRegenerate', 'zoomSensitivity', 'pinchSensitivity', 'countsSort', 'applyReplaceBtn',
   'replaceTargetBtn', 'replaceTargetPopover', 'replaceTargetSearch', 'replaceTargetGrid',
-  'sidebarToggleBtn', 'suppressRegenPrompt',
+  'sidebarToggleBtn', 'suppressRegenPrompt', 'exportShareBtn',
+  'confirmModal', 'confirmTitle', 'confirmMsg', 'confirmSuppress', 'confirmOk', 'confirmCancel',
+  'shareModal', 'shareUrl', 'shareLength', 'shareCopyBtn',
 ]) els[id] = $(id);
 
 function toast(message, tone = 'info') {
@@ -391,7 +394,13 @@ async function generate(opts = {}) {
       return;
     }
     if (!opts.auto && state.patternDirty && !els.suppressRegenPrompt?.checked) {
-      const ok = window.confirm('重新生成会丢弃当前的手动修改 / 导入图纸，确定继续吗？\n\n（可以在左侧”参数修改后自动重新生成”下方勾选”重新生成前不再弹确认”来关闭此提示。）');
+      const ok = await openConfirm({
+        title: '丢弃当前修改？',
+        message: '重新生成会丢弃当前的手动修改 / 导入的图纸，确定继续吗？',
+        confirmText: '继续生成',
+        cancelText: '取消',
+        suppressLabel: '以后不再提示（同步勾选左侧选项）',
+      });
       if (!ok) return;
     }
     els.generateBtn.disabled = true;
@@ -408,6 +417,7 @@ async function generate(opts = {}) {
     setProgress('完成，可以编辑/导出啦', 1);
     state.patternDirty = false;
     refreshAll();
+    if (isMobileViewport()) setMobileTab('canvas');
     toast('图纸生成好了。已经做了色域匹配、色块平滑和孤豆清理。', 'ok');
   } catch (err) {
     console.error(err);
@@ -673,12 +683,56 @@ function exportHtml() {
     boardMinor: Number(els.boardMinor.value),
     beadShape: els.beadShape.value,
   });
-  downloadText(`${filenameBase()}-overview-print.html`, html, 'text/html;charset=utf-8');
+  const b64 = btoa(unescape(encodeURIComponent(html)));
+  const dataUrl = `data:text/html;charset=utf-8;base64,${b64}`;
+  const win = window.open(dataUrl, '_blank', 'noopener');
+  if (!win) {
+    // 数据 URL 太大或被弹窗拦截，退回到 blob URL（同样直接打开，不下载）
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const blobUrl = URL.createObjectURL(blob);
+    const win2 = window.open(blobUrl, '_blank', 'noopener');
+    if (!win2) toast('浏览器拦截了新窗口，请允许弹窗后再试。', 'warn');
+    setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+  }
 }
 
 function exportCsv() {
   if (!state.pattern) return toast('还没有图纸。', 'warn');
   downloadText(`${filenameBase()}-counts.csv`, exportCountsCsv(state.pattern), 'text/csv;charset=utf-8');
+}
+
+async function newBlankPattern() {
+  const width = Math.max(1, Math.min(320, Math.floor(Number(els.widthInput.value) || 0)));
+  const height = Math.max(1, Math.min(320, Math.floor(Number(els.heightInput.value) || 0)));
+  if (!width || !height) { toast('尺寸不合法。', 'warn'); return; }
+  if (state.patternDirty && !els.suppressRegenPrompt?.checked) {
+    const ok = await openConfirm({
+      title: '丢弃当前修改？',
+      message: `新建空白图纸会丢弃当前内容。继续创建 ${width}×${height} 的空白图吗？`,
+      confirmText: '新建',
+      cancelText: '取消',
+    });
+    if (!ok) return;
+  }
+  const palette = currentPalette();
+  const cells = new Int16Array(width * height);
+  cells.fill(EMPTY);
+  const pattern = {
+    width, height, cells, palette,
+    metrics: computeMetrics(cells, width, height, palette),
+  };
+  state.pattern = pattern;
+  state.undo = [];
+  state.redo = [];
+  state.selectedCell = null;
+  state.selectedColorIndex = palette.colors.length ? 0 : EMPTY;
+  state.view = fitView(pattern, els.patternCanvas);
+  state.patternDirty = false;
+  state.currentTool = 'brush';
+  updateToolButtons();
+  refreshAll();
+  if (isMobileViewport()) setMobileTab('canvas');
+  toast(`已新建 ${width}×${height} 空白图纸，挑色卡颜色直接画。`, 'ok');
 }
 
 async function importPatternFile(file) {
@@ -693,6 +747,7 @@ async function importPatternFile(file) {
   state.view = fitView(pattern, els.patternCanvas);
   state.patternDirty = true;
   refreshAll();
+  if (isMobileViewport()) setMobileTab('canvas');
   toast('已导入 .pbdx 图纸，可以继续编辑/导出了。', 'ok');
 }
 
@@ -733,14 +788,31 @@ function setupEvents() {
     try { await setImageFromBlob(file, file.name); }
     catch (err) { toast(err.message || String(err), 'error'); }
   });
+  let sampleBlobPromise = null;
   els.sampleBtn.addEventListener('click', async () => {
+    if (els.sampleBtn.disabled) return;
+    const original = els.sampleBtn.textContent;
+    els.sampleBtn.disabled = true;
+    els.sampleBtn.textContent = '加载中…';
     try {
-      const res = await fetch('samples/sample.jpeg');
-      const blob = await res.blob();
+      if (!sampleBlobPromise) {
+        sampleBlobPromise = fetch('samples/sample.jpeg').then((r) => {
+          if (!r.ok) throw new Error(`HTTP ${r.status}`);
+          return r.blob();
+        });
+      }
+      const blob = await sampleBlobPromise;
       await setImageFromBlob(blob, 'sample.jpeg');
       toast('示例图已载入。', 'ok');
-    } catch (err) { toast(`加载示例失败：${err.message}`, 'error'); }
+    } catch (err) {
+      sampleBlobPromise = null;
+      toast(`加载示例失败：${err.message}`, 'error');
+    } finally {
+      els.sampleBtn.disabled = false;
+      els.sampleBtn.textContent = original;
+    }
   });
+  els.newBlankBtn.addEventListener('click', () => newBlankPattern());
   els.importPatternBtn.addEventListener('click', () => els.patternInput.click());
   els.patternInput.addEventListener('change', () => { const f = els.patternInput.files?.[0]; if (f) importPatternFile(f); els.patternInput.value = ''; });
   els.importPaletteBtn.addEventListener('click', () => els.paletteInput.click());
@@ -769,6 +841,7 @@ function setupEvents() {
   });
   setupSideNav();
   setupSidebarToggle();
+  setupMobileTabs();
   const zoomAtCenter = (factor) => {
     if (!state.pattern) return;
     const rect = els.patternCanvas.getBoundingClientRect();
@@ -795,6 +868,24 @@ function setupEvents() {
   els.exportSvgBtn.addEventListener('click', exportSvg);
   els.exportCsvBtn.addEventListener('click', exportCsv);
   els.exportHtmlBtn.addEventListener('click', exportHtml);
+  els.exportShareBtn?.addEventListener('click', shareCurrentPattern);
+  els.shareCopyBtn?.addEventListener('click', async () => {
+    const url = els.shareUrl.value;
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      toast('已复制到剪贴板。', 'ok');
+    } catch {
+      els.shareUrl.select();
+      try {
+        document.execCommand('copy');
+        toast('已复制到剪贴板。', 'ok');
+      } catch {
+        toast('无法复制，请手动选中并复制。', 'warn');
+      }
+    }
+  });
+  setupModalDismissers();
   for (const btn of document.querySelectorAll('[data-preset]')) btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
   for (const id of AUTO_REGEN_INPUTS) {
     const el = els[id];
@@ -861,6 +952,148 @@ function init() {
   updateSelectedChip();
   refreshReplaceTarget();
   render();
+  loadFromHashIfAny();
+}
+
+function isMobileViewport() {
+  return window.matchMedia('(max-width: 900px)').matches;
+}
+
+function setupModalDismissers() {
+  for (const m of document.querySelectorAll('.modal')) {
+    m.addEventListener('click', (e) => {
+      const t = e.target;
+      if (t instanceof HTMLElement && t.hasAttribute('data-close')) {
+        m.hidden = true;
+      }
+    });
+  }
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape') return;
+    const open = [...document.querySelectorAll('.modal')].find((m) => !m.hidden);
+    if (open) open.hidden = true;
+  });
+}
+
+function openConfirm({ title = '确认', message = '', confirmText = '确定', cancelText = '取消', suppressLabel = '' } = {}) {
+  return new Promise((resolve) => {
+    const modal = els.confirmModal;
+    if (!modal) { resolve(window.confirm(message)); return; }
+    els.confirmTitle.textContent = title;
+    els.confirmMsg.textContent = message;
+    els.confirmOk.textContent = confirmText;
+    els.confirmCancel.textContent = cancelText;
+
+    const suppressBox = els.confirmSuppress;
+    const suppressInput = suppressBox.querySelector('input');
+    const suppressSpan = suppressBox.querySelector('span');
+    if (suppressLabel) {
+      suppressBox.hidden = false;
+      suppressInput.checked = false;
+      suppressSpan.textContent = suppressLabel;
+    } else {
+      suppressBox.hidden = true;
+    }
+
+    modal.hidden = false;
+    const cleanup = (result) => {
+      modal.hidden = true;
+      els.confirmOk.removeEventListener('click', onOk);
+      els.confirmCancel.removeEventListener('click', onCancel);
+      document.removeEventListener('keydown', onKey, true);
+      if (result && suppressLabel && suppressInput.checked && els.suppressRegenPrompt) {
+        els.suppressRegenPrompt.checked = true;
+      }
+      resolve(result);
+    };
+    const onOk = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    const onKey = (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); onOk(); }
+      else if (e.key === 'Escape') { e.preventDefault(); onCancel(); }
+    };
+    els.confirmOk.addEventListener('click', onOk);
+    els.confirmCancel.addEventListener('click', onCancel);
+    document.addEventListener('keydown', onKey, true);
+    setTimeout(() => els.confirmOk.focus(), 0);
+  });
+}
+
+async function shareCurrentPattern() {
+  if (!state.pattern) { toast('还没有图纸。', 'warn'); return; }
+  const paletteId = state.pattern.palette.id;
+  const builtIn = PALETTES.some((p) => p.id === paletteId);
+  if (!builtIn) {
+    const ok = await openConfirm({
+      title: '当前用的是非内置色卡',
+      message: '分享链接只携带色卡 id，对方需要手动导入同名色卡才能正确显示。是否继续生成？',
+      confirmText: '仍然生成',
+      cancelText: '取消',
+    });
+    if (!ok) return;
+  }
+  try {
+    const code = await encodePatternToShareCode(state.pattern);
+    const url = `${location.origin}${location.pathname}#p=${code}`;
+    els.shareUrl.value = url;
+    els.shareLength.value = url.length;
+    els.shareModal.hidden = false;
+    setTimeout(() => { els.shareUrl.focus(); els.shareUrl.select(); }, 0);
+  } catch (err) {
+    toast(`生成分享链接失败：${err.message}`, 'error');
+  }
+}
+
+async function loadFromHashIfAny() {
+  const m = /(?:^#|&)p=([A-Za-z0-9_-]+)/.exec(location.hash);
+  if (!m) return;
+  try {
+    const decoded = await decodeShareCode(m[1], (id) => state.palettes.find((p) => p.id === id));
+    const pattern = {
+      width: decoded.width,
+      height: decoded.height,
+      cells: decoded.cells,
+      palette: decoded.palette,
+      metrics: computeMetrics(decoded.cells, decoded.width, decoded.height, decoded.palette),
+    };
+    state.pattern = pattern;
+    state.undo = [];
+    state.redo = [];
+    state.selectedCell = null;
+    state.selectedColorIndex = pattern.metrics.countList[0]?.index ?? EMPTY;
+    state.view = fitView(pattern, els.patternCanvas);
+    state.patternDirty = false;
+    els.paletteSelect.value = decoded.palette.id;
+    refreshAll();
+    history.replaceState({}, '', location.pathname + location.search);
+    if (isMobileViewport()) setMobileTab('canvas');
+    toast('已从分享链接载入图纸。', 'ok');
+  } catch (err) {
+    toast(`分享链接无效：${err.message}`, 'error');
+  }
+}
+
+let setMobileTab = () => {};
+function setupMobileTabs() {
+  const bar = document.getElementById('mobileTabs');
+  if (!bar) return;
+  const btns = [...bar.querySelectorAll('button[data-tab]')];
+  const KEY = 'bps:mtab';
+  setMobileTab = (tab) => {
+    if (tab !== 'tools' && tab !== 'canvas') tab = 'tools';
+    document.body.dataset.mtab = tab;
+    for (const b of btns) b.classList.toggle('active', b.dataset.tab === tab);
+    requestAnimationFrame(() => render());
+  };
+  setMobileTab(localStorage.getItem(KEY) || 'tools');
+  for (const b of btns) {
+    b.addEventListener('click', () => {
+      localStorage.setItem(KEY, b.dataset.tab);
+      setMobileTab(b.dataset.tab);
+    });
+  }
+  window.addEventListener('resize', () => requestAnimationFrame(() => render()));
+  window.addEventListener('orientationchange', () => requestAnimationFrame(() => render()));
 }
 
 function setupSidebarToggle() {
