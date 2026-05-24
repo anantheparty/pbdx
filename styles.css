@@ -143,7 +143,7 @@ p { margin: 6px 0; }
 .generateBar button.big { margin-top: 0; }
 .generateBar progress { margin-top: 8px; }
 .generateBar p { margin: 4px 0 0; font-size: 12.5px; }
-.sideFooter { padding: 6px 4px 4px; text-align: center; }
+.sideFooter { padding: 6px 4px 4px; display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
 .sideFooter a {
   display: inline-flex;
   align-items: center;

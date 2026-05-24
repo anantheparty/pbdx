@@ -32,29 +32,69 @@ type PaletteSet = {
 
 ## 2. 内置色卡
 
-### ARTKAL-M-MINI-221-2025
+内置色卡覆盖国内 MARD/Artkal 系列与国际主流 Perler/Hama/Nabbi 系列，下拉框默认 `MARD 221`。中国系靠前，国际系按品牌主流度排序。每个色卡的 `source` 与 `notes` 字段写明了数据出处与已知限制。
 
-- 2.6mm 小豆。
-- 221 项，其中 MH1 是透明色，默认排除。
-- 其余 220 项使用 Artkal 官方 RGB 表。
+### 中国系
 
-### MARD-221-BITBEAD
+#### MARD-221-BITBEAD（默认）
 
-- MARD 基础 221 色。
+- MARD 基础 221 色，5mm 豆。
 - 包含 A-H 与 M 系列。
 - 使用 Bitbead HEX 表。
 
-### MARD-264-COMPAT-221-PQR15
+#### MARD-264-COMPAT-221-PQR15
 
 - 本项目定义的 264 兼容集。
 - 组成：MARD 221 + P1-P23 + Q1-Q5 + R1-R15。
-- 这样做是因为市面“264色”常见，但商家公开的精确子集并不稳定；项目必须有可导入/导出的确定标准。
+- 市面“264色”常见，但商家公开的精确子集并不稳定；项目必须有可导入/导出的确定标准。
 - 如果你的实物 264 色卡不同，应导入自定义色卡。
+- 国内常见的 24/48/72/96/144 色简化套装均为**商家自选子集**，无统一标准映射，请用"导入自定义色卡"自己加。
 
-### MARD-291-BITBEAD
+#### MARD-291-BITBEAD
 
-- MARD 扩展 291 色。
+- MARD 扩展 291 色，5mm 豆。
 - 基础 221 + P/Q/R/T/Y/ZG 扩展系列。
+
+#### ARTKAL-M-MINI-221-2025
+
+- Artkal M 系列，2.6mm 小豆。
+- 221 项，其中 MH1 是透明色，默认排除。
+- 其余 220 项使用 Artkal 官方 RGB 表。
+
+#### ARTKAL-A-SOFT-MINI / -C-HARD-MINI / -R-MIDI / -S-MIDI
+
+- Artkal 其他主力系列：A 软 2.6mm（145色）、C 硬 2.6mm（174色）、R 5mm 圆豆（89色）、S 5mm 半透明系（199色，含大量透明项默认排除）。
+- 数据源：[`maxcleme/beadcolors`](https://github.com/maxcleme/beadcolors) 开源数据库，与社区 `pixel-beads.com` 交叉验证。
+- Artkal 官方未公开这几个系列的 PDF/JSON RGB 表（仅图片），所以 hex 是社区测量值，色相整体一致但精确度低于 Artkal-M-Mini。
+
+### 国际系
+
+#### PERLER-STD / -MINI / -BIGGIE
+
+- Perler 美式 5mm 主流品牌：standard（103色）、mini 2.6mm（41色）、biggie 10mm（26色）。
+- 数据源：`maxcleme/beadcolors`。
+- Perler 官方未发布带 RGB 的色表，hex 为社区测量值；透明/夜光/亮片色已标 `kind: special`。
+
+#### HAMA-MIDI / -MINI / -MAXI
+
+- Hama 欧洲 5mm 主流品牌：midi 5mm（92色）、mini 2.5mm（78色）、maxi 10mm（25色）。
+- 数据源：`maxcleme/beadcolors`。
+- Hama 透明色 H13-H16、H19、H24、H25、H72-H74 标记 `transparent: true`，默认排除。
+
+#### NABBI
+
+- 丹麦 Nabbi 5mm（30色）。
+- 数据源：`maxcleme/beadcolors`，与 `pixel-beads.com` 交叉验证（N01/N04 完全一致）。
+
+### 数据可信度
+
+所有 hex 都是工程近似，不等于实际豆子的绝对物理颜色，详见第 1 节末注释。MARD/Artkal-M-Mini 来自官方/Bitbead 表；其他色卡来自 `maxcleme/beadcolors` 这个被多个开源拼豆工具（如 `beadifier`）共用的数据库。每个色卡的 `notes` 字段独立说明可信度。
+
+### 没有内置的色卡
+
+- **IKEA Pyssla**：宜家未公开 RGB，社区只有 17 色不完整数据，未收录。
+- **Beados**：是水珠玩具不是拼豆，2017 年已停产。
+- **国内 24/48/72/96/144 等小套装**：均为商家自选子集，无统一映射，请走"导入自定义色卡"。
 
 ## 3. 图纸生成流程
 
