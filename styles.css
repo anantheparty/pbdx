@@ -54,20 +54,9 @@ small { display: block; color: var(--muted); margin-top: 4px; line-height: 1.35;
 label { display: grid; gap: 6px; margin: 10px 0; color: #3b3026; font-size: 14px; }
 output { color: var(--accent); font-weight: 800; justify-self: end; margin-top: -22px; }
 progress { width: 100%; height: 12px; accent-color: var(--accent); }
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 18px;
-  padding: 22px clamp(16px, 3vw, 36px);
-  border-bottom: 1px solid rgba(110, 82, 55, .14);
-  backdrop-filter: blur(8px);
-}
-h1 { margin: 0; font-size: clamp(24px, 3vw, 38px); letter-spacing: -0.04em; }
 h2 { margin: 0 0 10px; font-size: 16px; }
 p { margin: 6px 0; }
 .muted { color: var(--muted); font-size: 13px; }
-.topActions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .appShell {
   display: grid;
   grid-template-columns: minmax(320px, 380px) 1fr;
@@ -203,6 +192,41 @@ body.resizingCanvas * { cursor: row-resize !important; }
 .chipSwatch { width: 18px; height: 18px; border-radius: 50%; border: 1px solid rgba(0,0,0,.16); display: inline-block; }
 .chipSwatch.empty { background: repeating-linear-gradient(45deg, #fff, #fff 4px, #ddd 4px, #ddd 8px); }
 .cellInfo { color: var(--muted); font-size: 12px; margin-left: auto; }
+.toolbarEnd { margin-left: 0; }
+.viewSettings {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 10px;
+  padding: 6px 10px;
+}
+.viewSettings label {
+  margin: 0;
+  font-size: 12.5px;
+  color: #3b3026;
+}
+.viewSettings label.check {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 10px 3px 8px;
+  gap: 6px;
+}
+.viewSettings label.inline {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 3px 8px;
+}
+.viewSettings input[type="number"] { width: 52px; padding: 3px 6px; border-radius: 6px; }
+.viewSettings input[type="range"] { width: 110px; padding: 0; }
+.viewSettings select { width: auto; padding: 3px 6px; border-radius: 6px; }
+.viewSettings output { color: var(--accent); font-weight: 800; font-size: 12px; margin: 0; min-width: 32px; text-align: right; }
+.viewSettings .vSep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
 .canvasWrap { padding: 0; overflow: hidden; min-height: 360px; }
 #patternCanvas { width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: none; }
 #patternCanvas.panning { cursor: grab; }
@@ -299,7 +323,6 @@ body.resizingCanvas * { cursor: row-resize !important; }
   .sideNav { position: static; }
 }
 @media (max-width: 680px) {
-  .topbar { align-items: flex-start; flex-direction: column; }
   .twocol { grid-template-columns: 1fr; }
   .metricsCards { grid-template-columns: repeat(2, 1fr); }
   .toolbar { align-items: stretch; }
