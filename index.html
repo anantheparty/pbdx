@@ -9,8 +9,8 @@
 <body>
   <main class="appShell" id="appShell">
     <aside class="sidePanel">
-      <div class="sideHeader">
-        <h1 class="sideTitle">拼豆图纸生成器</h1>
+      <div class="sideStickyTop">
+        <h1 class="sideTitle"><span>拼豆图纸生成器</span></h1>
         <nav class="sideNav" id="sideNav">
           <a href="#secPalette" data-target="secPalette">色域</a>
           <a href="#secParams" data-target="secParams">参数</a>
@@ -210,8 +210,8 @@
           <button id="redoBtn" class="secondary">重做</button>
         </div>
         <div class="toolGroup">
-          <button id="zoomOutBtn" class="secondary">−</button>
-          <button id="zoomInBtn" class="secondary">＋</button>
+          <button id="zoomOutBtn" class="secondary zoomBtn" title="缩小">−</button>
+          <button id="zoomInBtn" class="secondary zoomBtn" title="放大">+</button>
           <button id="fitBtn" class="secondary">适屏</button>
         </div>
         <div id="selectedColorChip" class="selectedChip"></div>

@@ -769,8 +769,20 @@ function setupEvents() {
   });
   setupSideNav();
   setupSidebarToggle();
-  els.zoomInBtn.addEventListener('click', () => { state.view.scale = Math.min(80, state.view.scale * 1.25); render(); });
-  els.zoomOutBtn.addEventListener('click', () => { state.view.scale = Math.max(1.5, state.view.scale / 1.25); render(); });
+  const zoomAtCenter = (factor) => {
+    if (!state.pattern) return;
+    const rect = els.patternCanvas.getBoundingClientRect();
+    const mx = rect.width / 2;
+    const my = rect.height / 2;
+    const beforeX = (mx - state.view.offsetX) / state.view.scale;
+    const beforeY = (my - state.view.offsetY) / state.view.scale;
+    state.view.scale = Math.max(1.5, Math.min(80, state.view.scale * factor));
+    state.view.offsetX = mx - beforeX * state.view.scale;
+    state.view.offsetY = my - beforeY * state.view.scale;
+    render();
+  };
+  els.zoomInBtn.addEventListener('click', () => zoomAtCenter(1.25));
+  els.zoomOutBtn.addEventListener('click', () => zoomAtCenter(1 / 1.25));
   els.fitBtn.addEventListener('click', () => { if (state.pattern) state.view = fitView(state.pattern, els.patternCanvas); render(); });
   els.undoBtn.addEventListener('click', undo);
   els.redoBtn.addEventListener('click', redo);

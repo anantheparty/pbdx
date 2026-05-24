@@ -75,26 +75,30 @@ p { margin: 6px 0; }
   scrollbar-gutter: stable;
   scroll-behavior: smooth;
 }
-.sidePanel > section[id^="sec"] { scroll-margin-top: 96px; }
-.sideHeader {
+.sidePanel > section[id^="sec"] { scroll-margin-top: 132px; }
+.sideStickyTop {
   position: sticky;
   top: 0;
   z-index: 5;
   display: grid;
-  gap: 8px;
-  padding: 10px 12px;
-  background: rgba(255, 250, 242, .94);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(130, 95, 55, .18);
-  border-radius: 16px;
-  box-shadow: 0 6px 18px rgba(80, 50, 30, .08);
+  gap: 10px;
+  padding-bottom: 4px;
 }
 .sideTitle {
   margin: 0;
-  font-size: 20px;
+  padding: 14px 18px;
+  background: rgba(255, 250, 242, .96);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(130, 95, 55, .22);
+  border-radius: 18px;
+  box-shadow: 0 10px 26px rgba(80, 50, 30, .12);
+  font-size: 26px;
   letter-spacing: -0.02em;
-  font-weight: 800;
-  background: linear-gradient(135deg, #ff7f9b, #a184f6);
+  font-weight: 850;
+  line-height: 1.15;
+}
+.sideTitle span {
+  background: linear-gradient(135deg, #ff5d7e 0%, #c764d1 45%, #8a6be8 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -103,6 +107,12 @@ p { margin: 6px 0; }
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  padding: 8px 10px;
+  background: rgba(255, 250, 242, .94);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(130, 95, 55, .18);
+  border-radius: 14px;
+  box-shadow: 0 4px 14px rgba(80, 50, 30, .06);
 }
 .sideNav a {
   text-decoration: none;
@@ -219,6 +229,16 @@ body.resizingCanvas { cursor: row-resize; user-select: none; }
 body.resizingCanvas * { cursor: row-resize !important; }
 .toolbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; padding: 6px 8px; }
 .toolbar button { padding: 5px 10px; font-size: 13px; border-radius: 9px; }
+.zoomBtn {
+  min-width: 32px;
+  padding: 5px 0 !important;
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+}
+.row + .row { margin-top: 8px; }
 .iconBtn {
   display: inline-flex;
   align-items: center;
@@ -374,7 +394,7 @@ body.resizingCanvas * { cursor: row-resize !important; }
   .appShell { grid-template-columns: 1fr; overflow: visible; min-height: 0; }
   .sidePanel, .workspace { overflow-y: visible; padding-right: 0; }
   .workspace { grid-template-rows: auto minmax(420px, 56vh) 10px auto; }
-  .sideHeader { position: static; }
+  .sideStickyTop { position: static; }
 }
 @media (max-width: 680px) {
   .twocol { grid-template-columns: 1fr; }
