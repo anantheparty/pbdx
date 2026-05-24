@@ -35,6 +35,7 @@ for (const id of [
   'exportPbdxBtn', 'exportPngBtn', 'exportSvgBtn', 'exportCsvBtn', 'exportHtmlBtn', 'exportCellPx', 'previewImage', 'statusLine',
   'autoRegenerate', 'zoomSensitivity', 'countsSort', 'applyReplaceBtn',
   'replaceTargetBtn', 'replaceTargetPopover', 'replaceTargetSearch', 'replaceTargetGrid',
+  'sidebarToggleBtn',
 ]) els[id] = $(id);
 
 function toast(message, tone = 'info') {
@@ -752,6 +753,7 @@ function setupEvents() {
     }
   });
   setupSideNav();
+  setupSidebarToggle();
   els.zoomInBtn.addEventListener('click', () => { state.view.scale = Math.min(80, state.view.scale * 1.25); render(); });
   els.zoomOutBtn.addEventListener('click', () => { state.view.scale = Math.max(1.5, state.view.scale / 1.25); render(); });
   els.fitBtn.addEventListener('click', () => { if (state.pattern) state.view = fitView(state.pattern, els.patternCanvas); render(); });
@@ -832,6 +834,32 @@ function init() {
   updateSelectedChip();
   refreshReplaceTarget();
   render();
+}
+
+function setupSidebarToggle() {
+  const btn = els.sidebarToggleBtn;
+  const shell = document.getElementById('appShell');
+  if (!btn || !shell) return;
+  const KEY = 'bps:sideHidden';
+  const apply = (hidden) => {
+    shell.classList.toggle('sideHidden', hidden);
+    btn.setAttribute('title', hidden ? '显示左侧工具栏' : '隐藏左侧工具栏');
+    btn.setAttribute('aria-label', hidden ? '显示左侧工具栏' : '隐藏左侧工具栏');
+    btn.setAttribute('aria-expanded', String(!hidden));
+    requestAnimationFrame(() => render());
+  };
+  apply(localStorage.getItem(KEY) === '1');
+  btn.addEventListener('click', () => {
+    const next = !shell.classList.contains('sideHidden');
+    localStorage.setItem(KEY, next ? '1' : '0');
+    apply(next);
+  });
+  window.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === '\\') {
+      e.preventDefault();
+      btn.click();
+    }
+  });
 }
 
 function setupSideNav() {

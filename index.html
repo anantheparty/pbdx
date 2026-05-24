@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <main class="appShell">
+  <main class="appShell" id="appShell">
     <aside class="sidePanel">
       <div class="sideHeader">
         <h1 class="sideTitle">拼豆图纸生成器</h1>
@@ -30,7 +30,9 @@
           <button id="sampleBtn" class="secondary grow">加载示例图</button>
           <img id="previewImage" alt="preview" hidden />
         </div>
-        <button id="importPaletteBtn" class="secondary">导入自定义色卡</button>
+        <div class="row gap">
+          <button id="importPaletteBtn" class="secondary grow">导入自定义色卡</button>
+        </div>
         <input id="paletteInput" type="file" accept=".json,.csv,application/json,text/csv" hidden />
         <p id="statusLine" class="muted">还没载入图片。</p>
       </section>
@@ -190,6 +192,9 @@
 
     <section class="workspace">
       <div class="toolbar card compact">
+        <button id="sidebarToggleBtn" class="iconBtn" type="button" aria-label="隐藏/显示左侧工具栏" title="隐藏/显示左侧工具栏">
+          <svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="12 5 6 10 12 15"/></svg>
+        </button>
         <div class="toolGroup">
           <button id="brushBtn">画笔</button>
           <button id="eraseBtn">橡皮</button>
