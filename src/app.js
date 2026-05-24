@@ -32,7 +32,7 @@ for (const id of [
   'widthInput', 'heightInput', 'lockAspect', 'fitMode', 'backgroundMode', 'alphaThreshold', 'whiteCutoff',
   'maxColors', 'coherence', 'smoothPasses', 'minIsland', 'cleanupPasses', 'edgeProtect', 'mergeMaxDelta', 'ditherMode', 'ditherStrength',
   'metric', 'includeSpecial', 'generateBtn', 'progressBar', 'progressText', 'patternCanvas', 'paletteSearch', 'paletteGrid',
-  'countsTable', 'metricsCards', 'selectedColorChip', 'selectedCellInfo', 'showGrid', 'showCodes', 'showCoords', 'showErrors',
+  'countsTable', 'metricsCards', 'selectedColorChip', 'selectedCellInfo', 'showGrid', 'showCodes', 'showCoords',
   'highlightSelected', 'boardMajor', 'boardMinor', 'beadShape', 'zoomInBtn', 'zoomOutBtn', 'fitBtn', 'undoBtn', 'redoBtn', 'eraseBtn', 'brushBtn', 'panBtn', 'pickerBtn',
   'exportPbdxBtn', 'exportPngBtn', 'exportSvgBtn', 'exportCsvBtn', 'exportHtmlBtn', 'exportCellPx', 'previewImage', 'statusLine',
   'autoRegenerate', 'zoomSensitivity', 'pinchSensitivity', 'countsSort', 'applyReplaceBtn',
@@ -320,7 +320,6 @@ function render() {
     showGrid: els.showGrid.checked,
     showCodes: els.showCodes.checked,
     showCoords: els.showCoords.checked,
-    highlightErrors: els.showErrors.checked,
     highlightSelected: els.highlightSelected.checked,
     selectedColorIndex: state.selectedColorIndex,
     boardMajor: Number(els.boardMajor.value),
@@ -487,8 +486,23 @@ function setupCanvasEvents() {
 
   window.addEventListener('keydown', (e) => {
     if (e.key === ' ') { spaceDown = true; canvas.classList.add('panning'); }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
-    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+    const t = e.target;
+    const typing = t instanceof HTMLElement && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+    if (typing) return;
+    const mod = e.ctrlKey || e.metaKey;
+    if (mod && !e.altKey) {
+      const k = e.key.toLowerCase();
+      if (k === 'z' && e.shiftKey) { e.preventDefault(); redo(); return; }
+      if (k === 'z') { e.preventDefault(); undo(); return; }
+      if (k === 'y') { e.preventDefault(); redo(); return; }
+    }
+    if (mod || e.altKey || e.shiftKey) return;
+    switch (e.key.toLowerCase()) {
+      case 'b': e.preventDefault(); els.brushBtn.click(); break;
+      case 'e': e.preventDefault(); els.eraseBtn.click(); break;
+      case 'i': e.preventDefault(); els.pickerBtn.click(); break;
+      case 'h': e.preventDefault(); els.panBtn.click(); break;
+    }
   });
   window.addEventListener('keyup', (e) => { if (e.key === ' ') { spaceDown = false; canvas.classList.remove('panning'); } });
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -822,7 +836,7 @@ function setupEvents() {
   els.generateBtn.addEventListener('click', () => generate());
   els.paletteSelect.addEventListener('change', () => { updatePaletteGrid(); });
   els.paletteSearch.addEventListener('input', updatePaletteGrid);
-  for (const id of ['showGrid', 'showCodes', 'showCoords', 'showErrors', 'highlightSelected', 'boardMajor', 'boardMinor', 'beadShape']) els[id].addEventListener('input', render);
+  for (const id of ['showGrid', 'showCodes', 'showCoords', 'highlightSelected', 'boardMajor', 'boardMinor', 'beadShape']) els[id].addEventListener('input', render);
   els.countsSort.addEventListener('change', () => { state.countsSort = els.countsSort.value; updateCountsTable(); });
   els.applyReplaceBtn.addEventListener('click', applyColorReplace);
   els.replaceTargetBtn?.addEventListener('click', (e) => { e.stopPropagation(); toggleReplaceTargetPopover(); });
