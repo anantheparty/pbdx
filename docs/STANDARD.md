@@ -1,4 +1,4 @@
-# 拼豆图纸标准草案（Bead Pattern Studio）
+# 拼豆图纸标准草案（PBDX）
 
 ## 1. 基本概念
 

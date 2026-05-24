@@ -1,8 +1,8 @@
 {
-  "name": "bead-pattern-studio",
+  "name": "pbdx",
   "version": "1.0.0",
   "private": true,
-  "description": "Client-side fuse-bead / 拼豆 pattern generator with palette standards, hand-friendly optimization, editing, and export.",
+  "description": "PBDX · 拼豆图纸生成器：客户端拼豆图案工具，含色卡标准、手工友好优化、编辑和导出。",
   "type": "module",
   "scripts": {
     "start": "python3 -m http.server 5173",
