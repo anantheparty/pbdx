@@ -118,6 +118,21 @@ p { margin: 6px 0; }
 }
 .sideNav a:hover { background: #fff0f4; color: #b93258; border-color: var(--accent); }
 .sideNav a.active { background: linear-gradient(135deg, #ff7f9b, #a184f6); color: #fff; border-color: transparent; }
+.generateBar {
+  position: sticky;
+  bottom: 6px;
+  z-index: 4;
+  background: rgba(255, 250, 242, .96);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(130, 95, 55, .22);
+  border-radius: 16px;
+  padding: 10px 14px;
+  box-shadow: 0 14px 32px rgba(80, 50, 30, .16);
+  margin: 0 2px;
+}
+.generateBar button.big { margin-top: 0; }
+.generateBar progress { margin-top: 8px; }
+.generateBar p { margin: 4px 0 0; font-size: 12.5px; }
 .sideFooter { padding: 6px 4px 4px; text-align: center; }
 .sideFooter a {
   display: inline-flex;

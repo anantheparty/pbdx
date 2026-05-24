@@ -22,6 +22,7 @@ const state = {
   dirtyDuringStroke: false,
   countsSort: 'count-desc',
   replaceTargetIndex: null,
+  patternDirty: false,
 };
 
 const els = {};
@@ -33,9 +34,9 @@ for (const id of [
   'countsTable', 'metricsCards', 'selectedColorChip', 'selectedCellInfo', 'showGrid', 'showCodes', 'showCoords', 'showErrors',
   'highlightSelected', 'boardMajor', 'boardMinor', 'beadShape', 'zoomInBtn', 'zoomOutBtn', 'fitBtn', 'undoBtn', 'redoBtn', 'eraseBtn', 'brushBtn', 'panBtn', 'pickerBtn',
   'exportPbdxBtn', 'exportPngBtn', 'exportSvgBtn', 'exportCsvBtn', 'exportHtmlBtn', 'exportCellPx', 'previewImage', 'statusLine',
-  'autoRegenerate', 'zoomSensitivity', 'countsSort', 'applyReplaceBtn',
+  'autoRegenerate', 'zoomSensitivity', 'pinchSensitivity', 'countsSort', 'applyReplaceBtn',
   'replaceTargetBtn', 'replaceTargetPopover', 'replaceTargetSearch', 'replaceTargetGrid',
-  'sidebarToggleBtn',
+  'sidebarToggleBtn', 'suppressRegenPrompt',
 ]) els[id] = $(id);
 
 function toast(message, tone = 'info') {
@@ -383,11 +384,15 @@ function updateWidthFromHeight() {
   els.widthInput.value = Math.max(1, Math.round(Number(els.heightInput.value) * state.imageAspect));
 }
 
-async function generate() {
+async function generate(opts = {}) {
   try {
     if (!state.image) {
-      toast('先上传图片，或者点“加载示例图”。', 'warn');
+      toast('先上传图片，或者点”加载示例图”。', 'warn');
       return;
+    }
+    if (!opts.auto && state.patternDirty && !els.suppressRegenPrompt?.checked) {
+      const ok = window.confirm('重新生成会丢弃当前的手动修改 / 导入图纸，确定继续吗？\n\n（可以在左侧”参数修改后自动重新生成”下方勾选”重新生成前不再弹确认”来关闭此提示。）');
+      if (!ok) return;
     }
     els.generateBtn.disabled = true;
     setProgress('开始生成', 0.02);
@@ -401,6 +406,7 @@ async function generate() {
     state.selectedColorIndex = firstColor;
     state.view = fitView(pattern, els.patternCanvas);
     setProgress('完成，可以编辑/导出啦', 1);
+    state.patternDirty = false;
     refreshAll();
     toast('图纸生成好了。已经做了色域匹配、色块平滑和孤豆清理。', 'ok');
   } catch (err) {
@@ -417,6 +423,7 @@ function pushUndo() {
   state.undo.push(new Int16Array(state.pattern.cells));
   if (state.undo.length > 40) state.undo.shift();
   state.redo = [];
+  state.patternDirty = true;
   updateUndoRedo();
 }
 
@@ -526,12 +533,19 @@ function setupCanvasEvents() {
     const rect = canvas.getBoundingClientRect();
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
-    const isZoom = e.ctrlKey || e.metaKey;
+    const isPinch = e.ctrlKey && Math.abs(e.deltaY) < 25;
+    const isZoom = isPinch || e.ctrlKey || e.metaKey;
     if (isZoom) {
       const beforeX = (mx - state.view.offsetX) / state.view.scale;
       const beforeY = (my - state.view.offsetY) / state.view.scale;
-      const sensitivity = Number(els.zoomSensitivity?.value) || 1.08;
-      const factor = Math.pow(sensitivity, -e.deltaY / 100);
+      let factor;
+      if (isPinch) {
+        const sens = Number(els.pinchSensitivity?.value) || 1.80;
+        factor = Math.pow(sens, -e.deltaY / 15);
+      } else {
+        const sens = Number(els.zoomSensitivity?.value) || 1.08;
+        factor = Math.pow(sens, -e.deltaY / 100);
+      }
       state.view.scale = Math.max(1.5, Math.min(80, state.view.scale * factor));
       state.view.offsetX = mx - beforeX * state.view.scale;
       state.view.offsetY = my - beforeY * state.view.scale;
@@ -573,8 +587,8 @@ function setupCanvasEvents() {
     const rect = canvas.getBoundingClientRect();
     const mid = touchMid();
     const dist = touchDist();
-    const sens = Number(els.zoomSensitivity?.value) || 1.08;
-    const k = Math.max(0.25, Math.min(1, 0.3 + (sens - 1.02) / 0.28 * 0.7));
+    const sens = Number(els.pinchSensitivity?.value) || 1.80;
+    const k = Math.max(0.2, Math.min(1.4, 0.3 + (sens - 1.10) / 1.90 * 0.9));
     const attenuated = Math.pow(dist / pinchStartDist, k);
     const scale = Math.max(1.5, Math.min(80, pinchStartScale * attenuated));
     const beforeX = (pinchAnchor.mx - pinchPanStart.ox) / pinchStartScale;
@@ -677,6 +691,7 @@ async function importPatternFile(file) {
   state.pattern = pattern;
   state.selectedColorIndex = pattern.metrics?.countList?.[0]?.index ?? EMPTY;
   state.view = fitView(pattern, els.patternCanvas);
+  state.patternDirty = true;
   refreshAll();
   toast('已导入 .pbdx 图纸，可以继续编辑/导出了。', 'ok');
 }
@@ -701,7 +716,7 @@ function scheduleAutoRegenerate() {
   autoRegenTimer = setTimeout(() => {
     autoRegenTimer = null;
     if (els.generateBtn.disabled) return;
-    generate();
+    generate({ auto: true });
   }, 450);
 }
 
@@ -732,7 +747,7 @@ function setupEvents() {
   els.paletteInput.addEventListener('change', () => { const f = els.paletteInput.files?.[0]; if (f) importPaletteFile(f); els.paletteInput.value = ''; });
   els.widthInput.addEventListener('input', updateHeightFromWidth);
   els.heightInput.addEventListener('input', updateWidthFromHeight);
-  els.generateBtn.addEventListener('click', generate);
+  els.generateBtn.addEventListener('click', () => generate());
   els.paletteSelect.addEventListener('change', () => { updatePaletteGrid(); });
   els.paletteSearch.addEventListener('input', updatePaletteGrid);
   for (const id of ['showGrid', 'showCodes', 'showCoords', 'showErrors', 'highlightSelected', 'boardMajor', 'boardMinor', 'beadShape']) els[id].addEventListener('input', render);
@@ -823,7 +838,7 @@ function setupCanvasResizer() {
 
 function init() {
   refreshPaletteSelect();
-  for (const id of ['alphaThreshold', 'whiteCutoff', 'maxColors', 'coherence', 'smoothPasses', 'minIsland', 'cleanupPasses', 'edgeProtect', 'mergeMaxDelta', 'ditherStrength', 'zoomSensitivity']) bindRange(id);
+  for (const id of ['alphaThreshold', 'whiteCutoff', 'maxColors', 'coherence', 'smoothPasses', 'minIsland', 'cleanupPasses', 'edgeProtect', 'mergeMaxDelta', 'ditherStrength', 'zoomSensitivity', 'pinchSensitivity']) bindRange(id);
   setupEvents();
   setupCanvasResizer();
   updateToolButtons();

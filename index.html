@@ -128,10 +128,14 @@
         </label>
         <label class="check"><input id="includeSpecial" type="checkbox" checked />允许特殊/扩展色号参与</label>
         <label class="check"><input id="autoRegenerate" type="checkbox" />参数修改后自动重新生成</label>
+        <label class="check"><input id="suppressRegenPrompt" type="checkbox" />重新生成前不再弹确认</label>
+      </section>
+
+      <div class="generateBar" id="generateBar">
         <button id="generateBtn" class="primary big">生成拼豆图纸</button>
         <progress id="progressBar" max="100" value="0"></progress>
         <p id="progressText" class="muted">等待开始。</p>
-      </section>
+      </div>
 
       <section class="card" id="secExport">
         <h2>4 · 导出 / 发布</h2>
@@ -241,9 +245,13 @@
             <option value="round">圆豆</option>
           </select>
         </label>
-        <label class="inline" title="每次滚轮的缩放比例">缩放灵敏度
+        <label class="inline" title="鼠标滚轮 / Ctrl+滚轮 的缩放比例">滚轮
           <input id="zoomSensitivity" type="range" min="1.02" max="1.30" step="0.01" value="1.08" />
           <output id="zoomSensitivityValue"></output>
+        </label>
+        <label class="inline" title="触摸板捏合 / 触摸屏多指捏合 的缩放力度">捏合
+          <input id="pinchSensitivity" type="range" min="1.10" max="3.00" step="0.05" value="1.80" />
+          <output id="pinchSensitivityValue"></output>
         </label>
       </div>
     </section>
