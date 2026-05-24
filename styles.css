@@ -103,21 +103,6 @@ p { margin: 6px 0; }
   background-clip: text;
   color: transparent;
 }
-.brandTag {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 2px 7px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 0.5em;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #8a6be8;
-  background: rgba(138, 107, 232, .1);
-  border: 1px solid rgba(138, 107, 232, .35);
-  border-radius: 6px;
-  vertical-align: middle;
-  transform: translateY(-2px);
-}
 .sideNav {
   display: flex;
   flex-wrap: wrap;
