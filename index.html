@@ -1,0 +1,232 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>拼豆图纸生成器 · Bead Pattern Studio</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <h1>拼豆图纸生成器</h1>
+    </div>
+    <div class="topActions">
+      <button id="importPatternBtn" class="secondary">导入 .pbdx 图纸</button>
+      <input id="patternInput" type="file" accept=".pbdx,.json,application/json" hidden />
+      <button id="importPaletteBtn" class="secondary">导入自定义色卡</button>
+      <input id="paletteInput" type="file" accept=".json,.csv,application/json,text/csv" hidden />
+    </div>
+  </header>
+
+  <main class="appShell">
+    <aside class="sidePanel">
+      <section class="card">
+        <h2>1 · 图片</h2>
+        <label class="fileDrop">
+          <input id="imageInput" type="file" accept="image/*" />
+          <span>上传图片</span>
+        </label>
+        <div class="row gap">
+          <button id="sampleBtn" class="secondary grow">加载示例图</button>
+          <img id="previewImage" alt="preview" hidden />
+        </div>
+        <p id="statusLine" class="muted">还没载入图片。</p>
+      </section>
+
+      <section class="card">
+        <h2>2 · 色域与尺寸</h2>
+        <label>色卡 / 标准
+          <select id="paletteSelect"></select>
+        </label>
+        <div class="twocol">
+          <label>宽 / 列
+            <input id="widthInput" type="number" min="8" max="320" value="96" />
+          </label>
+          <label>高 / 行
+            <input id="heightInput" type="number" min="8" max="320" value="96" />
+          </label>
+        </div>
+        <label class="check"><input id="lockAspect" type="checkbox" checked />锁定原图比例</label>
+        <div class="twocol">
+          <label>适配方式
+            <select id="fitMode">
+              <option value="contain">完整保留</option>
+              <option value="cover">裁切铺满</option>
+              <option value="stretch">强制拉伸</option>
+            </select>
+          </label>
+          <label>空白底
+            <select id="backgroundMode">
+              <option value="transparent">透明/留空</option>
+              <option value="white">白底</option>
+              <option value="black">黑底</option>
+            </select>
+          </label>
+        </div>
+        <label>透明阈值 <output id="alphaThresholdValue"></output>
+          <input id="alphaThreshold" type="range" min="0" max="255" value="12" />
+        </label>
+        <label>近白留空阈值 <output id="whiteCutoffValue"></output>
+          <input id="whiteCutoff" type="range" min="0" max="90" value="0" />
+          <small>默认只抠除与边缘连通的近白背景，尽量保留角色内部高光。</small>
+        </label>
+      </section>
+
+      <section class="card">
+        <h2>3 · 施工友好参数</h2>
+        <div class="presetGrid">
+          <button data-preset="faithful" class="secondary">高还原</button>
+          <button data-preset="balanced" class="secondary">平衡</button>
+          <button data-preset="easy" class="secondary">省事大块</button>
+          <button data-preset="lowcolor" class="secondary">低色数</button>
+          <button data-preset="pixel" class="secondary">点绘像素</button>
+        </div>
+        <label>最大用色数 <output id="maxColorsValue"></output>
+          <input id="maxColors" type="range" min="0" max="120" value="52" />
+          <small>0 = 不限制。少色更好施工，但还原会下降。</small>
+        </label>
+        <label>同色成块强度 <output id="coherenceValue"></output>
+          <input id="coherence" type="range" min="0" max="10" step="0.1" value="3.2" />
+        </label>
+        <label>块面优化轮数 <output id="smoothPassesValue"></output>
+          <input id="smoothPasses" type="range" min="0" max="8" value="2" />
+        </label>
+        <label>孤岛最小保留面积 <output id="minIslandValue"></output>
+          <input id="minIsland" type="range" min="0" max="30" value="2" />
+        </label>
+        <label>孤豆清理轮数 <output id="cleanupPassesValue"></output>
+          <input id="cleanupPasses" type="range" min="0" max="4" value="1" />
+        </label>
+        <label>边缘保护 <output id="edgeProtectValue"></output>
+          <input id="edgeProtect" type="range" min="0" max="10" step="0.1" value="7" />
+        </label>
+        <label>孤豆合并色差上限 <output id="mergeMaxDeltaValue"></output>
+          <input id="mergeMaxDelta" type="range" min="0" max="60" step="1" value="18" />
+          <small>仅当孤豆颜色和邻近颜色的色差 ≤ 此值时才合并。把对比强烈的"嘴巴/眼睛"等细节保留下来。0 = 关掉色差判断（旧行为）。</small>
+        </label>
+        <div class="twocol">
+          <label>抖动
+            <select id="ditherMode">
+              <option value="none">不用（推荐）</option>
+              <option value="bayer">有序抖动</option>
+              <option value="floyd">误差扩散</option>
+            </select>
+          </label>
+          <label>色差算法
+            <select id="metric">
+              <option value="de2000">CIEDE2000</option>
+              <option value="lab76">Lab76 快速</option>
+            </select>
+          </label>
+        </div>
+        <label>抖动强度 <output id="ditherStrengthValue"></output>
+          <input id="ditherStrength" type="range" min="0" max="1" step="0.01" value="0.18" />
+        </label>
+        <label class="check"><input id="includeSpecial" type="checkbox" checked />允许特殊/扩展色号参与</label>
+        <label class="check"><input id="autoRegenerate" type="checkbox" />参数修改后自动重新生成</label>
+        <button id="generateBtn" class="primary big">生成拼豆图纸</button>
+        <progress id="progressBar" max="100" value="0"></progress>
+        <p id="progressText" class="muted">等待开始。</p>
+      </section>
+    </aside>
+
+    <section class="workspace">
+      <div class="toolbar card compact">
+        <div class="toolGroup">
+          <button id="brushBtn">画笔</button>
+          <button id="eraseBtn">橡皮</button>
+          <button id="pickerBtn">吸管</button>
+          <button id="panBtn">移动</button>
+        </div>
+        <div class="toolGroup">
+          <button id="undoBtn" class="secondary">撤销</button>
+          <button id="redoBtn" class="secondary">重做</button>
+        </div>
+        <div class="toolGroup">
+          <button id="zoomOutBtn" class="secondary">−</button>
+          <button id="zoomInBtn" class="secondary">＋</button>
+          <button id="fitBtn" class="secondary">适屏</button>
+        </div>
+        <div id="selectedColorChip" class="selectedChip"></div>
+        <div id="selectedCellInfo" class="cellInfo">未选格子</div>
+      </div>
+
+      <div class="canvasWrap card">
+        <canvas id="patternCanvas"></canvas>
+      </div>
+
+      <div class="canvasResizer" id="canvasResizer" role="separator" aria-orientation="horizontal" title="拖动调整画布高度"></div>
+
+      <section class="lowerGrid">
+        <div class="card">
+          <h2>查看清晰度</h2>
+          <div class="twocol settingsSmall">
+            <label class="check"><input id="showGrid" type="checkbox" checked />网格</label>
+            <label class="check"><input id="showCodes" type="checkbox" checked />格内色号</label>
+            <label class="check"><input id="showCoords" type="checkbox" checked />行列坐标</label>
+            <label class="check"><input id="showErrors" type="checkbox" />高色差提示</label>
+            <label class="check"><input id="highlightSelected" type="checkbox" />高亮当前色号</label>
+            <label>板线粗 / 细
+              <div class="row gap">
+                <input id="boardMajor" type="number" min="0" max="200" value="10" title="粗线每多少格" />
+                <input id="boardMinor" type="number" min="0" max="200" value="5" title="细线每多少格" />
+              </div>
+            </label>
+            <label>形状
+              <select id="beadShape">
+                <option value="square">方格</option>
+                <option value="round">圆豆</option>
+              </select>
+            </label>
+          </div>
+          <label>滚轮缩放灵敏度 <output id="zoomSensitivityValue"></output>
+            <input id="zoomSensitivity" type="range" min="1.02" max="1.30" step="0.01" value="1.08" />
+            <small>每次滚轮的缩放比例，1.02 极柔和、1.30 接近原默认。</small>
+          </label>
+          <h2>导出/发布</h2>
+          <label>导出每格像素
+            <input id="exportCellPx" type="number" min="6" max="60" value="20" />
+          </label>
+          <div class="exportGrid">
+            <button id="exportPbdxBtn" class="primary">导出 .pbdx</button>
+            <button id="exportPngBtn" class="secondary">PNG 图纸</button>
+            <button id="exportSvgBtn" class="secondary">SVG 图纸</button>
+            <button id="exportHtmlBtn" class="secondary">总览 HTML</button>
+            <button id="exportCsvBtn" class="secondary">用豆 CSV</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2>用豆统计 / 复杂度</h2>
+          <div id="metricsCards" class="metricsCards"></div>
+          <div class="countsToolbar">
+            <label>排序
+              <select id="countsSort">
+                <option value="count-desc">数量 ↓</option>
+                <option value="count-asc">数量 ↑</option>
+                <option value="hue">按色相</option>
+                <option value="code">按色号</option>
+              </select>
+            </label>
+            <div class="replaceRow">
+              <span class="muted">把当前色号替换为</span>
+              <select id="replaceTarget"></select>
+              <button id="applyReplaceBtn" class="secondary">应用替换</button>
+            </div>
+          </div>
+          <div id="countsTable" class="countsTable"></div>
+        </div>
+
+        <div class="card paletteCard">
+          <h2>色卡与手动改色</h2>
+          <input id="paletteSearch" type="search" placeholder="搜索色号 / HEX" />
+          <div id="paletteGrid" class="paletteGrid"></div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
