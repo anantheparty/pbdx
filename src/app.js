@@ -483,6 +483,8 @@ function setupCanvasEvents() {
   const canvas = els.patternCanvas;
   let pointer = null;
   let spaceDown = false;
+  let pinchActive = false;
+  let pointerCaptureId = null;
 
   window.addEventListener('keydown', (e) => {
     if (e.key === ' ') { spaceDown = true; canvas.classList.add('panning'); }
@@ -508,7 +510,9 @@ function setupCanvasEvents() {
   canvas.addEventListener('contextmenu', (e) => e.preventDefault());
   canvas.addEventListener('pointerdown', (e) => {
     if (!state.pattern) return;
+    if (pinchActive) return;
     canvas.setPointerCapture(e.pointerId);
+    pointerCaptureId = e.pointerId;
     const pan = state.currentTool === 'pan' || e.button === 1 || e.button === 2 || spaceDown;
     pointer = {
       pan,
@@ -533,7 +537,7 @@ function setupCanvasEvents() {
     }
   });
   canvas.addEventListener('pointermove', (e) => {
-    if (!state.pattern || !pointer) return;
+    if (pinchActive || !state.pattern || !pointer) return;
     if (pointer.pan) {
       state.view.offsetX = pointer.ox + (e.clientX - pointer.startX);
       state.view.offsetY = pointer.oy + (e.clientY - pointer.startY);
@@ -547,8 +551,13 @@ function setupCanvasEvents() {
     pointer.painted = paintCell(hit, color) || pointer.painted;
     render();
   });
-  canvas.addEventListener('pointerup', () => {
-    if (pointer?.painted && state.pattern) refreshAll();
+  canvas.addEventListener('pointerup', (e) => {
+    if (pointerCaptureId === e.pointerId) pointerCaptureId = null;
+    if (!pinchActive && pointer?.painted && state.pattern) refreshAll();
+    pointer = null;
+  });
+  canvas.addEventListener('pointercancel', (e) => {
+    if (pointerCaptureId === e.pointerId) pointerCaptureId = null;
     pointer = null;
   });
   canvas.addEventListener('wheel', (e) => {
@@ -595,6 +604,20 @@ function setupCanvasEvents() {
   canvas.addEventListener('touchstart', (e) => {
     if (e.touches.length < 2) return;
     e.preventDefault();
+    if (!pinchActive) {
+      if (pointer && !pointer.pan && pointer.pushed && state.undo.length) {
+        state.pattern.cells = state.undo.pop();
+        state.patternDirty = state.undo.length > 0;
+        updateUndoRedo();
+        render();
+      }
+      if (pointerCaptureId != null) {
+        try { canvas.releasePointerCapture(pointerCaptureId); } catch {}
+        pointerCaptureId = null;
+      }
+      pointer = null;
+      pinchActive = true;
+    }
     activeTouches.clear();
     for (const t of e.touches) activeTouches.set(t.identifier, { x: t.clientX, y: t.clientY });
     pinchStartDist = touchDist();
@@ -627,6 +650,7 @@ function setupCanvasEvents() {
   const endTouch = (e) => {
     for (const t of e.changedTouches) activeTouches.delete(t.identifier);
     if (activeTouches.size < 2) { pinchStartDist = 0; pinchAnchor = null; pinchPanStart = null; }
+    if (e.touches.length === 0) pinchActive = false;
   };
   canvas.addEventListener('touchend', endTouch);
   canvas.addEventListener('touchcancel', endTouch);
