@@ -33,7 +33,9 @@ for (const id of [
   'maxColors', 'coherence', 'smoothPasses', 'minIsland', 'cleanupPasses', 'edgeProtect', 'mergeMaxDelta', 'ditherMode', 'ditherStrength',
   'metric', 'includeSpecial', 'generateBtn', 'progressBar', 'progressText', 'patternCanvas', 'paletteSearch', 'paletteGrid',
   'countsTable', 'metricsCards', 'selectedColorChip', 'selectedCellInfo', 'showGrid', 'showCodes', 'showCoords',
-  'highlightSelected', 'boardMajor', 'boardMinor', 'beadShape', 'zoomInBtn', 'zoomOutBtn', 'fitBtn', 'undoBtn', 'redoBtn', 'eraseBtn', 'brushBtn', 'panBtn', 'pickerBtn',
+  'highlightSelected', 'boardMajor', 'boardMinor', 'beadShape',
+  'gridColor', 'gridWidth', 'boardMajorColor', 'boardMajorWidth', 'boardMinorColor', 'boardMinorWidth',
+  'zoomInBtn', 'zoomOutBtn', 'fitBtn', 'undoBtn', 'redoBtn', 'eraseBtn', 'brushBtn', 'panBtn', 'pickerBtn',
   'exportPbdxBtn', 'exportPngBtn', 'exportSvgBtn', 'exportCsvBtn', 'exportHtmlBtn', 'exportCellPx', 'previewImage', 'statusLine',
   'autoRegenerate', 'zoomSensitivity', 'pinchSensitivity', 'countsSort', 'applyReplaceBtn',
   'replaceTargetBtn', 'replaceTargetPopover', 'replaceTargetSearch', 'replaceTargetGrid',
@@ -315,6 +317,17 @@ function updateToolButtons() {
   }
 }
 
+function gridStyle() {
+  return {
+    gridColor: els.gridColor.value,
+    gridWidth: Number(els.gridWidth.value),
+    boardMajorColor: els.boardMajorColor.value,
+    boardMajorWidth: Number(els.boardMajorWidth.value),
+    boardMinorColor: els.boardMinorColor.value,
+    boardMinorWidth: Number(els.boardMinorWidth.value),
+  };
+}
+
 function render() {
   renderPatternCanvas(els.patternCanvas, state.pattern, state.view, {
     showGrid: els.showGrid.checked,
@@ -326,6 +339,7 @@ function render() {
     boardMinor: Number(els.boardMinor.value),
     beadShape: els.beadShape.value,
     selectedCell: state.selectedCell,
+    ...gridStyle(),
   });
 }
 
@@ -471,6 +485,12 @@ function paintCell(hit, colorIndex = state.selectedColorIndex) {
 
 function pickCell(hit) {
   if (!state.pattern || !hit) return;
+  if (state.selectedCell && state.selectedCell.x === hit.x && state.selectedCell.y === hit.y) {
+    state.selectedCell = null;
+    els.selectedCellInfo.textContent = '';
+    render();
+    return;
+  }
   selectColor(hit.colorIndex);
   state.selectedCell = { x: hit.x, y: hit.y };
   const pal = state.pattern.palette;
@@ -504,6 +524,14 @@ function setupCanvasEvents() {
       case 'e': e.preventDefault(); els.eraseBtn.click(); break;
       case 'i': e.preventDefault(); els.pickerBtn.click(); break;
       case 'h': e.preventDefault(); els.panBtn.click(); break;
+      case 'escape':
+        if (state.selectedCell) {
+          state.selectedCell = null;
+          els.selectedCellInfo.textContent = '';
+          render();
+          e.preventDefault();
+        }
+        break;
     }
   });
   window.addEventListener('keyup', (e) => { if (e.key === ' ') { spaceDown = false; canvas.classList.remove('panning'); } });
@@ -694,6 +722,7 @@ function exportPng() {
     boardMinor: Number(els.boardMinor.value),
     beadShape: els.beadShape.value,
     legend: true,
+    ...gridStyle(),
   });
   canvas.toBlob((blob) => downloadBlob(`${filenameBase()}-pattern.png`, blob), 'image/png');
 }
@@ -708,6 +737,7 @@ function exportSvg() {
     boardMinor: Number(els.boardMinor.value),
     beadShape: els.beadShape.value,
     legend: true,
+    ...gridStyle(),
   });
   downloadText(`${filenameBase()}-pattern.svg`, svg, 'image/svg+xml;charset=utf-8');
 }
@@ -720,6 +750,7 @@ function exportHtml() {
     boardMajor: Number(els.boardMajor.value),
     boardMinor: Number(els.boardMinor.value),
     beadShape: els.beadShape.value,
+    ...gridStyle(),
   });
   const b64 = btoa(unescape(encodeURIComponent(html)));
   const dataUrl = `data:text/html;charset=utf-8;base64,${b64}`;
@@ -860,7 +891,9 @@ function setupEvents() {
   els.generateBtn.addEventListener('click', () => generate());
   els.paletteSelect.addEventListener('change', () => { updatePaletteGrid(); });
   els.paletteSearch.addEventListener('input', updatePaletteGrid);
-  for (const id of ['showGrid', 'showCodes', 'showCoords', 'highlightSelected', 'boardMajor', 'boardMinor', 'beadShape']) els[id].addEventListener('input', render);
+  const viewInputs = ['showGrid', 'showCodes', 'showCoords', 'highlightSelected', 'boardMajor', 'boardMinor', 'beadShape',
+    'gridColor', 'gridWidth', 'boardMajorColor', 'boardMajorWidth', 'boardMinorColor', 'boardMinorWidth'];
+  for (const id of viewInputs) els[id].addEventListener('input', () => { saveGridStyle(); render(); });
   els.countsSort.addEventListener('change', () => { state.countsSort = els.countsSort.value; updateCountsTable(); });
   els.applyReplaceBtn.addEventListener('click', applyColorReplace);
   els.replaceTargetBtn?.addEventListener('click', (e) => { e.stopPropagation(); toggleReplaceTargetPopover(); });
@@ -977,9 +1010,31 @@ function setupCanvasResizer() {
   handle.addEventListener('pointercancel', end);
 }
 
+const GRID_STYLE_KEY = 'bps:gridStyle';
+function loadGridStyle() {
+  let raw = null;
+  try { raw = JSON.parse(localStorage.getItem(GRID_STYLE_KEY) || 'null'); } catch {}
+  if (!raw || typeof raw !== 'object') return;
+  for (const k of ['gridColor', 'gridWidth', 'boardMajorColor', 'boardMajorWidth', 'boardMinorColor', 'boardMinorWidth']) {
+    if (raw[k] != null && els[k]) els[k].value = String(raw[k]);
+  }
+}
+function saveGridStyle() {
+  const obj = {
+    gridColor: els.gridColor.value,
+    gridWidth: Number(els.gridWidth.value),
+    boardMajorColor: els.boardMajorColor.value,
+    boardMajorWidth: Number(els.boardMajorWidth.value),
+    boardMinorColor: els.boardMinorColor.value,
+    boardMinorWidth: Number(els.boardMinorWidth.value),
+  };
+  try { localStorage.setItem(GRID_STYLE_KEY, JSON.stringify(obj)); } catch {}
+}
+
 function init() {
   refreshPaletteSelect();
   for (const id of ['alphaThreshold', 'whiteCutoff', 'maxColors', 'coherence', 'smoothPasses', 'minIsland', 'cleanupPasses', 'edgeProtect', 'mergeMaxDelta', 'ditherStrength', 'zoomSensitivity', 'pinchSensitivity']) bindRange(id);
+  loadGridStyle();
   setupEvents();
   setupCanvasResizer();
   updateToolButtons();

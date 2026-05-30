@@ -124,8 +124,8 @@ export function renderPatternCanvas(canvas, pattern, view, options = {}) {
   const showGrid = options.showGrid !== false;
   if (showGrid && scale >= 4) {
     ctx.beginPath();
-    ctx.strokeStyle = options.dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.12)';
-    ctx.lineWidth = 1 / Math.max(1, window.devicePixelRatio || 1);
+    ctx.strokeStyle = options.gridColor ?? (options.dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.12)');
+    ctx.lineWidth = Number(options.gridWidth) > 0 ? Number(options.gridWidth) : 1 / Math.max(1, window.devicePixelRatio || 1);
     for (let x = startX; x <= endX; x++) { ctx.moveTo(x * scale, startY * scale); ctx.lineTo(x * scale, endY * scale); }
     for (let y = startY; y <= endY; y++) { ctx.moveTo(startX * scale, y * scale); ctx.lineTo(endX * scale, y * scale); }
     ctx.stroke();
@@ -134,8 +134,8 @@ export function renderPatternCanvas(canvas, pattern, view, options = {}) {
   const boardMinor = Number(options.boardMinor ?? 0);
   if (boardMinor > 0 && scale >= 2) {
     ctx.beginPath();
-    ctx.strokeStyle = options.dark ? 'rgba(255,255,255,0.30)' : 'rgba(92,63,35,0.28)';
-    ctx.lineWidth = Math.max(1, Math.min(2, scale * 0.045));
+    ctx.strokeStyle = options.boardMinorColor ?? (options.dark ? 'rgba(255,255,255,0.30)' : 'rgba(92,63,35,0.28)');
+    ctx.lineWidth = Number(options.boardMinorWidth) > 0 ? Number(options.boardMinorWidth) : Math.max(1, Math.min(2, scale * 0.045));
     for (let x = 0; x <= pattern.width; x += boardMinor) { ctx.moveTo(x * scale, 0); ctx.lineTo(x * scale, pattern.height * scale); }
     for (let y = 0; y <= pattern.height; y += boardMinor) { ctx.moveTo(0, y * scale); ctx.lineTo(pattern.width * scale, y * scale); }
     ctx.stroke();
@@ -143,8 +143,8 @@ export function renderPatternCanvas(canvas, pattern, view, options = {}) {
   const boardMajor = Number(options.boardMajor ?? 0);
   if (boardMajor > 0 && scale >= 2) {
     ctx.beginPath();
-    ctx.strokeStyle = options.dark ? 'rgba(255,255,255,0.62)' : 'rgba(60,40,20,0.62)';
-    ctx.lineWidth = Math.max(2, Math.min(5, scale * 0.1));
+    ctx.strokeStyle = options.boardMajorColor ?? (options.dark ? 'rgba(255,255,255,0.62)' : 'rgba(60,40,20,0.62)');
+    ctx.lineWidth = Number(options.boardMajorWidth) > 0 ? Number(options.boardMajorWidth) : Math.max(2, Math.min(5, scale * 0.1));
     for (let x = 0; x <= pattern.width; x += boardMajor) { ctx.moveTo(x * scale, 0); ctx.lineTo(x * scale, pattern.height * scale); }
     for (let y = 0; y <= pattern.height; y += boardMajor) { ctx.moveTo(0, y * scale); ctx.lineTo(pattern.width * scale, y * scale); }
     ctx.stroke();
@@ -208,8 +208,8 @@ function drawPatternAt(ctx, pattern, opts) {
   }
   if (opts.showGrid !== false && cellPx >= 3) {
     ctx.beginPath();
-    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = opts.gridColor ?? 'rgba(0,0,0,0.18)';
+    ctx.lineWidth = Number(opts.gridWidth) > 0 ? Number(opts.gridWidth) : 1;
     for (let x = 0; x <= pattern.width; x++) { ctx.moveTo(ox + x * cellPx + 0.5, oy); ctx.lineTo(ox + x * cellPx + 0.5, oy + pattern.height * cellPx); }
     for (let y = 0; y <= pattern.height; y++) { ctx.moveTo(ox, oy + y * cellPx + 0.5); ctx.lineTo(ox + pattern.width * cellPx, oy + y * cellPx + 0.5); }
     ctx.stroke();
@@ -217,8 +217,8 @@ function drawPatternAt(ctx, pattern, opts) {
   const boardMinor = Number(opts.boardMinor ?? 0);
   if (boardMinor > 0) {
     ctx.beginPath();
-    ctx.strokeStyle = 'rgba(92,63,35,0.32)';
-    ctx.lineWidth = Math.max(1, Math.min(2, cellPx * 0.06));
+    ctx.strokeStyle = opts.boardMinorColor ?? 'rgba(92,63,35,0.32)';
+    ctx.lineWidth = Number(opts.boardMinorWidth) > 0 ? Number(opts.boardMinorWidth) : Math.max(1, Math.min(2, cellPx * 0.06));
     for (let x = 0; x <= pattern.width; x += boardMinor) { ctx.moveTo(ox + x * cellPx, oy); ctx.lineTo(ox + x * cellPx, oy + pattern.height * cellPx); }
     for (let y = 0; y <= pattern.height; y += boardMinor) { ctx.moveTo(ox, oy + y * cellPx); ctx.lineTo(ox + pattern.width * cellPx, oy + y * cellPx); }
     ctx.stroke();
@@ -226,8 +226,8 @@ function drawPatternAt(ctx, pattern, opts) {
   const boardMajor = Number(opts.boardMajor ?? 0);
   if (boardMajor > 0) {
     ctx.beginPath();
-    ctx.strokeStyle = 'rgba(60,40,20,0.7)';
-    ctx.lineWidth = Math.max(2, Math.min(5, cellPx * 0.12));
+    ctx.strokeStyle = opts.boardMajorColor ?? 'rgba(60,40,20,0.7)';
+    ctx.lineWidth = Number(opts.boardMajorWidth) > 0 ? Number(opts.boardMajorWidth) : Math.max(2, Math.min(5, cellPx * 0.12));
     for (let x = 0; x <= pattern.width; x += boardMajor) { ctx.moveTo(ox + x * cellPx, oy); ctx.lineTo(ox + x * cellPx, oy + pattern.height * cellPx); }
     for (let y = 0; y <= pattern.height; y += boardMajor) { ctx.moveTo(ox, oy + y * cellPx); ctx.lineTo(ox + pattern.width * cellPx, oy + y * cellPx); }
     ctx.stroke();
@@ -319,21 +319,27 @@ export function patternToSvg(pattern, opts = {}) {
     }
   }
   if (opts.showGrid !== false) {
-    parts.push(`<g stroke="rgba(0,0,0,0.18)" stroke-width="1">`);
+    const gridStroke = opts.gridColor ?? 'rgba(0,0,0,0.18)';
+    const gridW = Number(opts.gridWidth) > 0 ? Number(opts.gridWidth) : 1;
+    parts.push(`<g stroke="${gridStroke}" stroke-width="${gridW}">`);
     for (let x = 0; x <= pattern.width; x++) parts.push(`<line x1="${margin + x * cell}" y1="${margin}" x2="${margin + x * cell}" y2="${margin + pattern.height * cell}"/>`);
     for (let y = 0; y <= pattern.height; y++) parts.push(`<line x1="${margin}" y1="${margin + y * cell}" x2="${margin + pattern.width * cell}" y2="${margin + y * cell}"/>`);
     parts.push(`</g>`);
   }
   const boardMinor = Number(opts.boardMinor ?? 0);
   if (boardMinor > 0) {
-    parts.push(`<g stroke="rgba(92,63,35,0.32)" stroke-width="${Math.max(1, Math.min(2, cell * 0.06))}">`);
+    const minorStroke = opts.boardMinorColor ?? 'rgba(92,63,35,0.32)';
+    const minorW = Number(opts.boardMinorWidth) > 0 ? Number(opts.boardMinorWidth) : Math.max(1, Math.min(2, cell * 0.06));
+    parts.push(`<g stroke="${minorStroke}" stroke-width="${minorW}">`);
     for (let x = 0; x <= pattern.width; x += boardMinor) parts.push(`<line x1="${margin + x * cell}" y1="${margin}" x2="${margin + x * cell}" y2="${margin + pattern.height * cell}"/>`);
     for (let y = 0; y <= pattern.height; y += boardMinor) parts.push(`<line x1="${margin}" y1="${margin + y * cell}" x2="${margin + pattern.width * cell}" y2="${margin + y * cell}"/>`);
     parts.push(`</g>`);
   }
   const boardMajor = Number(opts.boardMajor ?? 0);
   if (boardMajor > 0) {
-    parts.push(`<g stroke="rgba(60,40,20,0.7)" stroke-width="${Math.max(2, Math.min(5, cell * 0.12))}">`);
+    const majorStroke = opts.boardMajorColor ?? 'rgba(60,40,20,0.7)';
+    const majorW = Number(opts.boardMajorWidth) > 0 ? Number(opts.boardMajorWidth) : Math.max(2, Math.min(5, cell * 0.12));
+    parts.push(`<g stroke="${majorStroke}" stroke-width="${majorW}">`);
     for (let x = 0; x <= pattern.width; x += boardMajor) parts.push(`<line x1="${margin + x * cell}" y1="${margin}" x2="${margin + x * cell}" y2="${margin + pattern.height * cell}"/>`);
     for (let y = 0; y <= pattern.height; y += boardMajor) parts.push(`<line x1="${margin}" y1="${margin + y * cell}" x2="${margin + pattern.width * cell}" y2="${margin + y * cell}"/>`);
     parts.push(`</g>`);

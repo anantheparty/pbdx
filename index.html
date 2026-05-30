@@ -235,17 +235,25 @@
       <div class="canvasResizer" id="canvasResizer" role="separator" aria-orientation="horizontal" title="拖动调整画布高度"></div>
 
       <div class="card compact viewSettings">
-        <label class="check inline"><input id="showGrid" type="checkbox" checked />网格</label>
         <label class="check inline"><input id="showCodes" type="checkbox" checked />格内色号</label>
         <label class="check inline"><input id="showCoords" type="checkbox" checked />行列坐标</label>
         <label class="check inline"><input id="highlightSelected" type="checkbox" />高亮选中色</label>
         <span class="vSep"></span>
-        <label class="inline" title="粗线每多少格">板线粗
-          <input id="boardMajor" type="number" min="0" max="200" value="10" />
-        </label>
-        <label class="inline" title="细线每多少格">细
+        <label class="check inline" title="1×1 单格边线"><input id="showGrid" type="checkbox" checked />地板</label>
+        <input id="gridColor" type="color" class="styleColor" value="#9aa0a6" title="地板颜色" />
+        <input id="gridWidth" type="number" class="styleWidth" min="0.5" max="5" step="0.5" value="1" title="地板粗细 (px)" />
+        <span class="vSep"></span>
+        <label class="inline" title="细线每多少格">细线
           <input id="boardMinor" type="number" min="0" max="200" value="5" />
         </label>
+        <input id="boardMinorColor" type="color" class="styleColor" value="#aa886c" title="细线颜色" />
+        <input id="boardMinorWidth" type="number" class="styleWidth" min="0.5" max="6" step="0.5" value="1.5" title="细线粗细 (px)" />
+        <span class="vSep"></span>
+        <label class="inline" title="板线每多少格">板线
+          <input id="boardMajor" type="number" min="0" max="200" value="10" />
+        </label>
+        <input id="boardMajorColor" type="color" class="styleColor" value="#3c2814" title="板线颜色" />
+        <input id="boardMajorWidth" type="number" class="styleWidth" min="0.5" max="10" step="0.5" value="3" title="板线粗细 (px)" />
         <label class="inline">形状
           <select id="beadShape">
             <option value="square">方格</option>
