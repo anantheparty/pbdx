@@ -438,6 +438,35 @@ u.kbd, .kbd u {
   overflow-y: auto;
   box-shadow: 0 24px 60px rgba(60, 30, 10, .28);
 }
+.modalCard.wide { width: min(640px, 100%); }
+.analyzeControls {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-bottom: 12px;
+}
+.analyzeControls input[type="number"] { width: 64px; padding: 4px 6px; }
+.analyzeResults {
+  border: 1px solid var(--line); border-radius: 10px;
+  max-height: 380px; overflow-y: auto;
+  background: #fafafa;
+}
+.analyzeResults table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.analyzeResults th, .analyzeResults td {
+  padding: 7px 10px; border-bottom: 1px solid #eee;
+  text-align: left; vertical-align: middle;
+}
+.analyzeResults thead th {
+  position: sticky; top: 0; background: #fff;
+  font-weight: 700; font-size: 12px; color: #6f6a61;
+}
+.analyzeResults tr:last-child td { border-bottom: 0; }
+.analyzeResults tr.recommend td { background: #fff8d6; }
+.analyzeResults td.num { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.analyzeResults .applyRow { padding: 3px 9px; font-size: 12px; }
+.analyzeResults .badge {
+  display: inline-block; padding: 1px 6px; margin-left: 6px;
+  font-size: 11px; border-radius: 999px;
+  background: rgba(255, 200, 100, .4); color: #5b3a05;
+}
 .modalCard h3 { margin: 0 0 10px; font-size: 18px; }
 .modalCard p { margin: 0 0 12px; line-height: 1.5; }
 .modalCard p.small, .small { font-size: 12px; }

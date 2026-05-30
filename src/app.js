@@ -4,6 +4,7 @@ import { imageBlobToElement, generatePatternFromImage, computeMetrics } from './
 import { parsePattern, serializePattern, downloadText, downloadBlob, exportCountsCsv, parseAnyPaletteFile } from './format.js';
 import { fitView, renderPatternCanvas, cellAtPoint, makeExportCanvas, patternToSvg, printableHtml } from './render.js';
 import { encodePatternToShareCode, decodeShareCode } from './share.js';
+import { analyzeResolutions } from './analyze.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -42,6 +43,8 @@ for (const id of [
   'sidebarToggleBtn', 'suppressRegenPrompt', 'exportShareBtn',
   'confirmModal', 'confirmTitle', 'confirmMsg', 'confirmSuppress', 'confirmOk', 'confirmCancel',
   'shareModal', 'shareUrl', 'shareLength', 'shareCopyBtn',
+  'analyzeResBtn', 'analyzeModal', 'analyzeMinW', 'analyzeMaxW', 'analyzeWindow', 'analyzeRunBtn',
+  'analyzeStatus', 'analyzeResults',
 ]) els[id] = $(id);
 
 function toast(message, tone = 'info') {
@@ -940,6 +943,8 @@ function setupEvents() {
   els.exportCsvBtn.addEventListener('click', exportCsv);
   els.exportHtmlBtn.addEventListener('click', exportHtml);
   els.exportShareBtn?.addEventListener('click', shareCurrentPattern);
+  els.analyzeResBtn?.addEventListener('click', openAnalyzeModal);
+  els.analyzeRunBtn?.addEventListener('click', runAnalyze);
   els.shareCopyBtn?.addEventListener('click', async () => {
     const url = els.shareUrl.value;
     if (!url) return;
@@ -1109,6 +1114,69 @@ function openConfirm({ title = '确认', message = '', confirmText = '确定', c
     els.confirmCancel.addEventListener('click', onCancel);
     document.addEventListener('keydown', onKey, true);
     setTimeout(() => els.confirmOk.focus(), 0);
+  });
+}
+
+function openAnalyzeModal() {
+  if (!state.image) { toast('先上传一张图片再扫描。', 'warn'); return; }
+  els.analyzeResults.innerHTML = '';
+  els.analyzeStatus.textContent = '点开始扫描';
+  els.analyzeModal.hidden = false;
+}
+
+async function runAnalyze() {
+  if (!state.image) { toast('先上传一张图片再扫描。', 'warn'); return; }
+  const minW = Math.max(8, Math.floor(Number(els.analyzeMinW.value) || 24));
+  const maxW = Math.max(minW + 1, Math.floor(Number(els.analyzeMaxW.value) || 192));
+  const win = Math.max(2, Math.floor(Number(els.analyzeWindow.value) || 12));
+  els.analyzeRunBtn.disabled = true;
+  els.analyzeStatus.textContent = `扫描 ${minW}-${maxW} ...`;
+  els.analyzeResults.innerHTML = '';
+  try {
+    await new Promise((r) => requestAnimationFrame(r));
+    const t0 = performance.now();
+    const result = await analyzeResolutions(state.image, { minW, maxW, window: win });
+    const ms = (performance.now() - t0).toFixed(0);
+    els.analyzeStatus.textContent = `扫了 ${result.all.length} 个尺寸，找到 ${result.special.length} 个甜点（${ms} ms）`;
+    renderAnalyzeResults(result);
+  } catch (err) {
+    els.analyzeStatus.textContent = `扫描失败：${err.message}`;
+  } finally {
+    els.analyzeRunBtn.disabled = false;
+  }
+}
+
+function renderAnalyzeResults(result) {
+  if (!result.special.length) {
+    els.analyzeResults.innerHTML = '<p class="muted small" style="padding:14px">这张图在选定范围内没有明显的"以小胜大"甜点——失真曲线很顺，直接按预算挑分辨率即可。</p>';
+    return;
+  }
+  const top = result.special.slice(0, 30);
+  const rows = top.map((p, idx) => {
+    const recommend = idx === 0 ? ' recommend' : '';
+    const badge = idx === 0 ? '<span class="badge">最划算</span>' : '';
+    return `<tr class="analyzeRow${recommend}" data-w="${p.width}" data-h="${p.height}">
+      <td class="num">${p.width}×${p.height}${badge}</td>
+      <td class="num">${p.score.toFixed(2)}</td>
+      <td class="num">${p.beats}</td>
+      <td class="num">${p.beadCount}</td>
+      <td><button class="applyRow secondary" data-w="${p.width}" data-h="${p.height}">应用</button></td>
+    </tr>`;
+  }).join('');
+  els.analyzeResults.innerHTML = `<table>
+    <thead><tr><th>尺寸</th><th title="cell 内 Lab 标准差均值，越低越好">失真</th><th title="向前看 ${result.window} 个邻居中被击败的数量">击败更大</th><th>用豆</th><th></th></tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+  els.analyzeResults.querySelectorAll('button.applyRow').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const w = Number(btn.dataset.w);
+      const h = Number(btn.dataset.h);
+      els.widthInput.value = w;
+      els.heightInput.value = h;
+      els.widthInput.dispatchEvent(new Event('input'));
+      els.analyzeModal.hidden = true;
+      toast(`已应用 ${w}×${h}，下一次生成会用这个尺寸。`, 'ok');
+    });
   });
 }
 

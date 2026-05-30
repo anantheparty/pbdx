@@ -53,6 +53,7 @@
           </label>
         </div>
         <label class="check"><input id="lockAspect" type="checkbox" checked />锁定原图比例</label>
+        <button id="analyzeResBtn" class="secondary grow" type="button" title="扫描整数分辨率范围，找出以小胜大的甜点尺寸">扫描合适分辨率</button>
         <div class="twocol">
           <label>适配方式
             <select id="fitMode">
@@ -281,6 +282,31 @@
       <div class="modalActions">
         <button data-close class="secondary" id="confirmCancel">取消</button>
         <button class="primary" id="confirmOk">确定</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal" id="analyzeModal" hidden>
+    <div class="modalBackdrop" data-close></div>
+    <div class="modalCard wide" role="dialog" aria-modal="true" aria-labelledby="analyzeTitle">
+      <h3 id="analyzeTitle">分辨率扫描</h3>
+      <p class="muted small" id="analyzeNote">在指定范围内逐个整数尺寸扫描，挑出"虽然分辨率更小，失真反而比某些更大尺寸更低"的甜点尺寸，按划算度排序。</p>
+      <div class="analyzeControls">
+        <label class="inline">最小宽
+          <input id="analyzeMinW" type="number" min="8" max="320" value="24" />
+        </label>
+        <label class="inline">最大宽
+          <input id="analyzeMaxW" type="number" min="8" max="320" value="192" />
+        </label>
+        <label class="inline">前向窗口
+          <input id="analyzeWindow" type="number" min="2" max="50" value="12" title="向前看几个邻居判断是否被击败" />
+        </label>
+        <button id="analyzeRunBtn" class="primary" type="button">开始扫描</button>
+        <span id="analyzeStatus" class="muted small"></span>
+      </div>
+      <div class="analyzeResults" id="analyzeResults"></div>
+      <div class="modalActions">
+        <button data-close class="secondary">关闭</button>
       </div>
     </div>
   </div>
