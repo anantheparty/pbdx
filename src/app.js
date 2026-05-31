@@ -1327,6 +1327,18 @@ function setupCropBoxDrag() {
   let startCrop = null;
   let movedPx = 0;
 
+  const resetDrag = () => {
+    mode = null; startPt = null; startCrop = null; movedPx = 0;
+    document.removeEventListener('pointermove', onPointerMove);
+    document.removeEventListener('pointerup', onPointerUp);
+    document.removeEventListener('pointercancel', onPointerUp);
+  };
+  // 顶部按钮 / 侧栏面板上 pointerdown 时主动清掉残留的拖拽状态——
+  // 保险，避免某次 pointerup 没派送导致后续按钮点击被吃掉
+  for (const safe of [els.identifyTopbar || els.identifyWorkspace.querySelector('.identifyTopbar'), els.identifyWorkspace.querySelector('.identifyAside')]) {
+    if (safe) safe.addEventListener('pointerdown', () => { if (mode) resetDrag(); }, true);
+  }
+
   const onPointerDown = (e, modeArg) => {
     if (!identifyState.active) return;
     e.stopPropagation();
@@ -1335,9 +1347,11 @@ function setupCropBoxDrag() {
     startPt = { x: e.clientX, y: e.clientY };
     startCrop = { ...identifyState.crop };
     movedPx = 0;
-    box.setPointerCapture?.(e.pointerId);
+    // 不用 setPointerCapture——document 级 pointermove/pointerup 已经够用，
+    // 而 setPointerCapture 在 iOS/触摸板上偶尔不会自动释放，会把后续点击劫走
     document.addEventListener('pointermove', onPointerMove);
     document.addEventListener('pointerup', onPointerUp, { once: true });
+    document.addEventListener('pointercancel', onPointerUp, { once: true });
   };
   const onPointerMove = (e) => {
     if (!mode || !startCrop) return;
@@ -1367,9 +1381,8 @@ function setupCropBoxDrag() {
   };
   const onPointerUp = (e) => {
     const wasClick = mode === 'move' && movedPx < 4;
-    mode = null; startPt = null; startCrop = null;
-    document.removeEventListener('pointermove', onPointerMove);
-    if (wasClick) pickCellAtClientPoint(e.clientX, e.clientY);
+    resetDrag();
+    if (wasClick && e.type === 'pointerup') pickCellAtClientPoint(e.clientX, e.clientY);
   };
 
   box.addEventListener('pointerdown', (e) => {
