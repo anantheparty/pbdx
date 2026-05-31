@@ -321,6 +321,7 @@ body.resizingCanvas * { cursor: row-resize !important; }
   flex-direction: column;
   z-index: 20;
 }
+.identifyWorkspace[hidden] { display: none; }
 .identifyTopbar {
   display: flex;
   align-items: center;
