@@ -1567,6 +1567,16 @@ function setupIdentifyEvents() {
     identifyState.preview = null;
     els.identifyApplyBtn.disabled = true;
   });
+  // Esc 退出识别模式（在 setupModalDismissers 的 Esc 处理之前拦截）
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Escape' || !identifyState.active) return;
+    // 如果有 modal 开着，先让 modal 关闭
+    const modalOpen = [...document.querySelectorAll('.modal')].some((m) => !m.hidden);
+    if (modalOpen) return;
+    e.preventDefault();
+    e.stopPropagation();
+    exitIdentifyMode();
+  }, true); // capture phase
   // 监听窗口尺寸变化，重布局
   const ro = new ResizeObserver(() => { if (identifyState.active) layoutIdentifyImage(); });
   ro.observe(els.identifyWorkspace);
