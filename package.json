@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "python3 -m http.server 5173",
-    "check": "node --check src/app.js && node --check src/color.js && node --check src/format.js && node --check src/quantize.js && node --check src/render.js && node --check src/palettes.js && node --check src/share.js && node --check src/analyze.js"
+    "check": "node --check src/app.js && node --check src/color.js && node --check src/format.js && node --check src/quantize.js && node --check src/render.js && node --check src/palettes.js && node --check src/share.js && node --check src/analyze.js && node --check src/identify.js"
   },
   "dependencies": {},
   "devDependencies": {}

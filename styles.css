@@ -308,9 +308,123 @@ body.resizingCanvas * { cursor: row-resize !important; }
 .viewSettings select { width: auto; padding: 3px 6px; border-radius: 6px; }
 .viewSettings output { color: var(--accent); font-weight: 800; font-size: 12px; margin: 0; min-width: 32px; text-align: right; }
 .viewSettings .vSep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
-.canvasWrap { padding: 0; overflow: hidden; min-height: 360px; }
+.canvasWrap { padding: 0; overflow: hidden; min-height: 360px; position: relative; }
 #patternCanvas { width: 100%; height: 100%; display: block; cursor: crosshair; touch-action: none; }
 #patternCanvas.panning { cursor: grab; }
+
+/* 识别模式工作区：直接覆盖在 patternCanvas 上 */
+.identifyWorkspace {
+  position: absolute;
+  inset: 0;
+  background: #fbf4ea;
+  display: flex;
+  flex-direction: column;
+  z-index: 20;
+}
+.identifyTopbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #fff7e8;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.identifyTopbar > strong { font-size: 14px; color: var(--accent); }
+.identifyTopbar > .small { flex: 1; min-width: 140px; }
+.identifyTopbar > button { padding: 6px 12px; font-size: 13px; }
+.identifyBody {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 280px;
+  min-height: 0;
+  overflow: hidden;
+}
+.identifyStage {
+  position: relative;
+  background: repeating-conic-gradient(#eee 0% 25%, #f7f7f7 0% 50%) 0 0 / 24px 24px;
+  overflow: hidden;
+  touch-action: none;
+  user-select: none;
+}
+#identifyCanvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+#identifyOverlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none; /* 网格 + 预览叠层，不接收事件 */
+}
+.cropBox {
+  position: absolute;
+  border: 2px solid #2290f0;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.35);
+  cursor: move;
+  box-sizing: border-box;
+}
+.cropHandle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border: 2px solid #2290f0;
+  border-radius: 3px;
+  box-sizing: border-box;
+}
+.cropHandle[data-handle="nw"] { left: -7px; top: -7px; cursor: nwse-resize; }
+.cropHandle[data-handle="ne"] { right: -7px; top: -7px; cursor: nesw-resize; }
+.cropHandle[data-handle="sw"] { left: -7px; bottom: -7px; cursor: nesw-resize; }
+.cropHandle[data-handle="se"] { right: -7px; bottom: -7px; cursor: nwse-resize; }
+.cropHandle[data-handle="n"] { left: 50%; top: -7px; transform: translateX(-50%); cursor: ns-resize; }
+.cropHandle[data-handle="s"] { left: 50%; bottom: -7px; transform: translateX(-50%); cursor: ns-resize; }
+.cropHandle[data-handle="w"] { top: 50%; left: -7px; transform: translateY(-50%); cursor: ew-resize; }
+.cropHandle[data-handle="e"] { top: 50%; right: -7px; transform: translateY(-50%); cursor: ew-resize; }
+
+.identifyAside {
+  background: #fffaf0;
+  border-left: 1px solid var(--line);
+  padding: 12px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.identifyGroup {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.identifyGroup h4 { margin: 0; font-size: 13px; color: var(--accent); }
+.identifyGroup select, .identifyGroup input[type="number"] { width: 100%; }
+.identifyGroup label.inline { display: flex; flex-direction: column; align-items: stretch; gap: 4px; }
+.identifyGroup label.inline input[type="range"] { width: 100%; }
+.identifyGroup .twocol { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cellPreviewRow { display: grid; grid-template-columns: 140px 1fr; gap: 10px; align-items: start; }
+#identifyCellPreview {
+  background: #fafafa;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  image-rendering: pixelated;
+}
+.cellPreviewInfo { font-size: 12px; line-height: 1.5; }
+.cellPreviewInfo .mono { font-family: ui-monospace, Menlo, Consolas, monospace; }
+
+@media (max-width: 900px) {
+  .identifyBody { grid-template-columns: 1fr; grid-template-rows: 1fr auto; }
+  .identifyAside { border-left: none; border-top: 1px solid var(--line); max-height: 42vh; }
+}
 .settingsSmall label { margin: 4px 0; }
 .metricsCards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
 .metric { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 9px; }

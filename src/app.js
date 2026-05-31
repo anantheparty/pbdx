@@ -5,6 +5,7 @@ import { parsePattern, serializePattern, downloadText, downloadBlob, exportCount
 import { fitView, renderPatternCanvas, cellAtPoint, makeExportCanvas, patternToSvg, printableHtml } from './render.js';
 import { encodePatternToShareCode, decodeShareCode } from './share.js';
 import { analyzeResolutions } from './analyze.js';
+import { detectGridSize, sampleCellsToPattern, drawCellPreview, gridLinesForCrop } from './identify.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -45,6 +46,13 @@ for (const id of [
   'shareModal', 'shareUrl', 'shareLength', 'shareCopyBtn',
   'analyzeResBtn', 'analyzeModal', 'analyzeMinW', 'analyzeMaxW', 'analyzeWindow', 'analyzeRunBtn',
   'analyzeStatus', 'analyzeResults',
+  'identifyBtn', 'identifyWorkspace', 'identifyTopbar', 'identifyHint', 'identifyChooseImageBtn',
+  'identifyCancelBtn', 'identifyApplyBtn', 'identifyImageInput',
+  'identifyCanvas', 'identifyOverlay', 'cropBox',
+  'identifyAutoBtn', 'identifyCols', 'identifyRows', 'identifyOffsetX', 'identifyOffsetY', 'identifyAutoStatus',
+  'identifyCellPreview', 'identifyCellPos', 'identifyCellHex', 'identifyCellMatch',
+  'identifyOuter', 'identifyOuterValue', 'identifyInner', 'identifyInnerValue',
+  'identifyPalette', 'identifyPreviewBtn',
 ]) els[id] = $(id);
 
 function toast(message, tone = 'info') {
@@ -962,6 +970,7 @@ function setupEvents() {
     }
   });
   setupModalDismissers();
+  setupIdentifyEvents();
   for (const btn of document.querySelectorAll('[data-preset]')) btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
   for (const id of AUTO_REGEN_INPUTS) {
     const el = els[id];
@@ -1115,6 +1124,453 @@ function openConfirm({ title = '确认', message = '', confirmText = '确定', c
     document.addEventListener('keydown', onKey, true);
     setTimeout(() => els.confirmOk.focus(), 0);
   });
+}
+
+// ===== 识别模式 =====
+const identifyState = {
+  active: false,
+  image: null,        // 当前识别用的 HTMLImageElement（默认沿用 state.image）
+  imageName: '',
+  fit: null,          // { drawX, drawY, drawW, drawH } 图片在 stage 上的实际显示位置
+  crop: null,         // { x, y, w, h } 在源图像素坐标系下的裁剪框
+  grid: null,         // { cols, rows, offsetX, offsetY } 在 crop 内的网格
+  preview: null,      // 上次识别得到的 { cells, avgRgb, palette }
+  selectedCell: null, // 预览的格子索引
+};
+
+function enterIdentifyMode() {
+  // 没图先弹选择器；选完再正式进入
+  if (!state.image) {
+    els.identifyImageInput.click();
+    return;
+  }
+  identifyState.image = state.image;
+  identifyState.imageName = state.imageName;
+  identifyState.crop = { _stale: true }; // 强制下次 layout 时重置为整图
+  identifyState.preview = null;
+  identifyState.selectedCell = null;
+  identifyState.active = true;
+  els.identifyWorkspace.hidden = false;
+  refreshIdentifyPaletteSelect();
+  els.identifyApplyBtn.disabled = true;
+  els.identifyAutoStatus.textContent = '';
+  els.identifyCellPos.textContent = '—';
+  els.identifyCellHex.textContent = '—';
+  els.identifyCellMatch.textContent = '—';
+  els.identifyOuterValue.textContent = els.identifyOuter.value;
+  els.identifyInnerValue.textContent = els.identifyInner.value;
+  layoutIdentifyImage();
+}
+
+function exitIdentifyMode() {
+  identifyState.active = false;
+  els.identifyWorkspace.hidden = true;
+}
+
+function refreshIdentifyPaletteSelect() {
+  const sel = els.identifyPalette;
+  if (!sel) return;
+  sel.innerHTML = '';
+  for (const p of state.palettes) {
+    const opt = document.createElement('option');
+    opt.value = p.id;
+    opt.textContent = `${p.label} · ${p.colors.length}色`;
+    sel.appendChild(opt);
+  }
+  sel.value = els.paletteSelect.value || state.palettes[0].id;
+}
+
+function layoutIdentifyImage() {
+  const img = identifyState.image;
+  if (!img) return;
+  const stage = els.identifyCanvas.parentElement; // .identifyStage
+  const rect = stage.getBoundingClientRect();
+  if (!rect.width || !rect.height) {
+    requestAnimationFrame(layoutIdentifyImage);
+    return;
+  }
+  const dpr = window.devicePixelRatio || 1;
+  const cv = els.identifyCanvas;
+  const ov = els.identifyOverlay;
+  for (const c of [cv, ov]) {
+    c.width = Math.round(rect.width * dpr);
+    c.height = Math.round(rect.height * dpr);
+    c.style.width = `${rect.width}px`;
+    c.style.height = `${rect.height}px`;
+  }
+  // contain-fit
+  const iw = img.naturalWidth || img.width;
+  const ih = img.naturalHeight || img.height;
+  const scale = Math.min(rect.width / iw, rect.height / ih);
+  const drawW = iw * scale;
+  const drawH = ih * scale;
+  const drawX = (rect.width - drawW) / 2;
+  const drawY = (rect.height - drawH) / 2;
+  identifyState.fit = { drawX, drawY, drawW, drawH, scale };
+  const ctx = cv.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  ctx.imageSmoothingEnabled = true;
+  ctx.drawImage(img, drawX, drawY, drawW, drawH);
+  // 初始化 crop = 整张图（用户再缩）
+  if (!identifyState.crop || identifyState.crop._stale) {
+    identifyState.crop = { x: 0, y: 0, w: iw, h: ih };
+  }
+  if (!identifyState.grid) {
+    identifyState.grid = { cols: Number(els.identifyCols.value) || 32, rows: Number(els.identifyRows.value) || 32, offsetX: 0, offsetY: 0 };
+  }
+  positionCropBox();
+  drawIdentifyOverlay();
+}
+
+function cropToScreen(c) {
+  const fit = identifyState.fit;
+  return {
+    left: fit.drawX + c.x * fit.scale,
+    top: fit.drawY + c.y * fit.scale,
+    width: c.w * fit.scale,
+    height: c.h * fit.scale,
+  };
+}
+
+function screenToImagePoint(px, py) {
+  const fit = identifyState.fit;
+  const iw = identifyState.image.naturalWidth || identifyState.image.width;
+  const ih = identifyState.image.naturalHeight || identifyState.image.height;
+  return {
+    x: Math.max(0, Math.min(iw, (px - fit.drawX) / fit.scale)),
+    y: Math.max(0, Math.min(ih, (py - fit.drawY) / fit.scale)),
+  };
+}
+
+function positionCropBox() {
+  if (!identifyState.fit || !identifyState.crop) return;
+  const r = cropToScreen(identifyState.crop);
+  const box = els.cropBox;
+  box.style.left = `${r.left}px`;
+  box.style.top = `${r.top}px`;
+  box.style.width = `${r.width}px`;
+  box.style.height = `${r.height}px`;
+}
+
+function drawIdentifyOverlay() {
+  if (!identifyState.fit || !identifyState.crop) return;
+  const ov = els.identifyOverlay;
+  const dpr = window.devicePixelRatio || 1;
+  const ctx = ov.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  const W = ov.width / dpr;
+  const H = ov.height / dpr;
+  ctx.clearRect(0, 0, W, H);
+  // 网格
+  if (identifyState.grid && identifyState.grid.cols > 0 && identifyState.grid.rows > 0) {
+    const lines = gridLinesForCrop(identifyState.crop, identifyState.grid);
+    const fit = identifyState.fit;
+    const ox = fit.drawX + identifyState.crop.x * fit.scale;
+    const oy = fit.drawY + identifyState.crop.y * fit.scale;
+    ctx.strokeStyle = 'rgba(34, 144, 240, 0.75)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (const x of lines.xs) {
+      const sx = ox + x * fit.scale;
+      ctx.moveTo(sx, oy);
+      ctx.lineTo(sx, oy + identifyState.crop.h * fit.scale);
+    }
+    for (const y of lines.ys) {
+      const sy = oy + y * fit.scale;
+      ctx.moveTo(ox, sy);
+      ctx.lineTo(ox + identifyState.crop.w * fit.scale, sy);
+    }
+    ctx.stroke();
+    // 选中格高亮
+    if (identifyState.selectedCell != null) {
+      const { cols } = identifyState.grid;
+      const cIdx = identifyState.selectedCell;
+      const cx = cIdx % cols;
+      const cy = Math.floor(cIdx / cols);
+      const cellW = (identifyState.crop.w - (identifyState.grid.offsetX ?? 0)) / cols;
+      const cellH = (identifyState.crop.h - (identifyState.grid.offsetY ?? 0)) / identifyState.grid.rows;
+      const sx = ox + ((identifyState.grid.offsetX ?? 0) + cx * cellW) * fit.scale;
+      const sy = oy + ((identifyState.grid.offsetY ?? 0) + cy * cellH) * fit.scale;
+      ctx.strokeStyle = 'rgba(255, 130, 0, 0.95)';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(sx, sy, cellW * fit.scale, cellH * fit.scale);
+    }
+  }
+}
+
+function pickCellAtClientPoint(clientX, clientY) {
+  const stage = els.identifyCanvas.parentElement;
+  if (!identifyState.fit || !identifyState.grid) return false;
+  const rect = stage.getBoundingClientRect();
+  const pt = screenToImagePoint(clientX - rect.left, clientY - rect.top);
+  const c = identifyState.crop;
+  if (pt.x < c.x || pt.x > c.x + c.w || pt.y < c.y || pt.y > c.y + c.h) return false;
+  const localX = pt.x - c.x - (identifyState.grid.offsetX ?? 0);
+  const localY = pt.y - c.y - (identifyState.grid.offsetY ?? 0);
+  const cellW = (c.w - (identifyState.grid.offsetX ?? 0)) / identifyState.grid.cols;
+  const cellH = (c.h - (identifyState.grid.offsetY ?? 0)) / identifyState.grid.rows;
+  const cx = Math.floor(localX / cellW);
+  const cy = Math.floor(localY / cellH);
+  if (cx < 0 || cx >= identifyState.grid.cols || cy < 0 || cy >= identifyState.grid.rows) return false;
+  identifyState.selectedCell = cy * identifyState.grid.cols + cx;
+  refreshCellPreview();
+  drawIdentifyOverlay();
+  return true;
+}
+
+function setupCropBoxDrag() {
+  const stage = els.identifyCanvas.parentElement;
+  const box = els.cropBox;
+  let mode = null; // 'move' | handle string
+  let startPt = null;
+  let startCrop = null;
+  let movedPx = 0;
+
+  const onPointerDown = (e, modeArg) => {
+    if (!identifyState.active) return;
+    e.stopPropagation();
+    e.preventDefault();
+    mode = modeArg;
+    startPt = { x: e.clientX, y: e.clientY };
+    startCrop = { ...identifyState.crop };
+    movedPx = 0;
+    box.setPointerCapture?.(e.pointerId);
+    document.addEventListener('pointermove', onPointerMove);
+    document.addEventListener('pointerup', onPointerUp, { once: true });
+  };
+  const onPointerMove = (e) => {
+    if (!mode || !startCrop) return;
+    const ddx = e.clientX - startPt.x;
+    const ddy = e.clientY - startPt.y;
+    movedPx = Math.max(movedPx, Math.hypot(ddx, ddy));
+    // 在 cropBox 上的"move"操作如果还没拖动超过 4px，先不当作 drag，等指针抬起判断是 click 还是 drag
+    if (mode === 'move' && movedPx < 4) return;
+    const dx = ddx / identifyState.fit.scale;
+    const dy = ddy / identifyState.fit.scale;
+    const img = identifyState.image;
+    const iw = img.naturalWidth || img.width;
+    const ih = img.naturalHeight || img.height;
+    let { x, y, w, h } = startCrop;
+    if (mode === 'move') {
+      x = Math.max(0, Math.min(iw - w, startCrop.x + dx));
+      y = Math.max(0, Math.min(ih - h, startCrop.y + dy));
+    } else {
+      if (mode.includes('w')) { const nx = Math.max(0, Math.min(startCrop.x + startCrop.w - 8, startCrop.x + dx)); w = startCrop.w + (startCrop.x - nx); x = nx; }
+      if (mode.includes('e')) { w = Math.max(8, Math.min(iw - startCrop.x, startCrop.w + dx)); }
+      if (mode.includes('n')) { const ny = Math.max(0, Math.min(startCrop.y + startCrop.h - 8, startCrop.y + dy)); h = startCrop.h + (startCrop.y - ny); y = ny; }
+      if (mode.includes('s')) { h = Math.max(8, Math.min(ih - startCrop.y, startCrop.h + dy)); }
+    }
+    identifyState.crop = { x, y, w, h };
+    positionCropBox();
+    drawIdentifyOverlay();
+  };
+  const onPointerUp = (e) => {
+    const wasClick = mode === 'move' && movedPx < 4;
+    mode = null; startPt = null; startCrop = null;
+    document.removeEventListener('pointermove', onPointerMove);
+    if (wasClick) pickCellAtClientPoint(e.clientX, e.clientY);
+  };
+
+  box.addEventListener('pointerdown', (e) => {
+    const t = e.target;
+    if (t instanceof HTMLElement && t.classList.contains('cropHandle')) {
+      onPointerDown(e, t.dataset.handle);
+    } else {
+      onPointerDown(e, 'move');
+    }
+  });
+
+  // 点击 stage 空白处选格（裁剪框外面也能选）
+  stage.addEventListener('pointerdown', (e) => {
+    if (e.target === els.cropBox || (e.target instanceof HTMLElement && e.target.classList.contains('cropHandle'))) return;
+    pickCellAtClientPoint(e.clientX, e.clientY);
+  });
+}
+
+function refreshCellPreview() {
+  if (identifyState.selectedCell == null || !identifyState.crop || !identifyState.grid) return;
+  const mask = { outer: Number(els.identifyOuter.value), inner: Number(els.identifyInner.value) };
+  // 先采样这一格，拿到代表色
+  const palette = state.palettes.find((p) => p.id === els.identifyPalette.value) ?? state.palettes[0];
+  // 单格采样：截一个 1×1 网格
+  const idx = identifyState.selectedCell;
+  const cx = idx % identifyState.grid.cols;
+  const cy = Math.floor(idx / identifyState.grid.cols);
+  const cellW = (identifyState.crop.w - (identifyState.grid.offsetX ?? 0)) / identifyState.grid.cols;
+  const cellH = (identifyState.crop.h - (identifyState.grid.offsetY ?? 0)) / identifyState.grid.rows;
+  const cellCrop = {
+    x: identifyState.crop.x + (identifyState.grid.offsetX ?? 0) + cx * cellW,
+    y: identifyState.crop.y + (identifyState.grid.offsetY ?? 0) + cy * cellH,
+    w: cellW,
+    h: cellH,
+  };
+  const result = sampleCellsToPattern(identifyState.image, cellCrop, { cols: 1, rows: 1, offsetX: 0, offsetY: 0 }, palette, mask);
+  const avgRgb = result.avgRgb[0];
+  const matchIdx = result.cells[0];
+  const matchColor = matchIdx >= 0 ? palette.colors[matchIdx] : null;
+  drawCellPreview(identifyState.image, identifyState.crop, identifyState.grid, idx, mask, els.identifyCellPreview, { sampledRgb: avgRgb });
+  els.identifyCellPos.textContent = `(${cx + 1}, ${cy + 1})`;
+  els.identifyCellHex.textContent = `#${avgRgb.map((v) => v.toString(16).padStart(2, '0')).join('').toUpperCase()}`;
+  els.identifyCellMatch.textContent = matchColor ? `${displayCode(palette, matchColor)} ${matchColor.hex}` : '空格';
+}
+
+async function runIdentifyAuto() {
+  if (!identifyState.image || !identifyState.crop) return;
+  els.identifyAutoBtn.disabled = true;
+  els.identifyAutoStatus.textContent = '识别中...';
+  try {
+    await new Promise((r) => requestAnimationFrame(r));
+    const t0 = performance.now();
+    const r = detectGridSize(identifyState.image, identifyState.crop, { minCols: 8, maxCols: 160 });
+    const ms = (performance.now() - t0).toFixed(0);
+    // 把 crop 收缩到恰好覆盖 cols×cellW × rows×cellH，让所有格子等大、无 offset
+    const newX = identifyState.crop.x + r.offsetXSrc;
+    const newY = identifyState.crop.y + r.offsetYSrc;
+    const newW = r.cellWSrc * r.cols;
+    const newH = r.cellHSrc * r.rows;
+    identifyState.crop = { x: newX, y: newY, w: newW, h: newH };
+    identifyState.grid = { cols: r.cols, rows: r.rows, offsetX: 0, offsetY: 0 };
+    els.identifyCols.value = r.cols;
+    els.identifyRows.value = r.rows;
+    els.identifyOffsetX.value = 0;
+    els.identifyOffsetY.value = 0;
+    positionCropBox();
+    drawIdentifyOverlay();
+    els.identifyAutoStatus.textContent = `识别为 ${r.cols}×${r.rows} 格（${ms} ms，已对齐裁剪框）`;
+    if (identifyState.selectedCell != null) refreshCellPreview();
+  } catch (err) {
+    els.identifyAutoStatus.textContent = `失败：${err.message}`;
+  } finally {
+    els.identifyAutoBtn.disabled = false;
+  }
+}
+
+function syncGridFromInputs() {
+  identifyState.grid = {
+    cols: Math.max(1, Math.floor(Number(els.identifyCols.value) || 1)),
+    rows: Math.max(1, Math.floor(Number(els.identifyRows.value) || 1)),
+    offsetX: Math.max(0, Math.floor(Number(els.identifyOffsetX.value) || 0)),
+    offsetY: Math.max(0, Math.floor(Number(els.identifyOffsetY.value) || 0)),
+  };
+  drawIdentifyOverlay();
+  if (identifyState.selectedCell != null) {
+    if (identifyState.selectedCell >= identifyState.grid.cols * identifyState.grid.rows) identifyState.selectedCell = null;
+    else refreshCellPreview();
+  }
+}
+
+async function runIdentifyPreview() {
+  if (!identifyState.image || !identifyState.crop || !identifyState.grid) return;
+  els.identifyPreviewBtn.disabled = true;
+  try {
+    const palette = state.palettes.find((p) => p.id === els.identifyPalette.value) ?? state.palettes[0];
+    const mask = { outer: Number(els.identifyOuter.value), inner: Number(els.identifyInner.value) };
+    await new Promise((r) => requestAnimationFrame(r));
+    const result = sampleCellsToPattern(identifyState.image, identifyState.crop, identifyState.grid, palette, mask);
+    identifyState.preview = { ...result, palette };
+    els.identifyApplyBtn.disabled = false;
+    toast(`识别完成 ${result.cols}×${result.rows}，可点"应用"写入主画布。`, 'ok');
+  } catch (err) {
+    toast(`识别失败：${err.message}`, 'error');
+  } finally {
+    els.identifyPreviewBtn.disabled = false;
+  }
+}
+
+async function applyIdentifyResult() {
+  if (!identifyState.preview) {
+    await runIdentifyPreview();
+    if (!identifyState.preview) return;
+  }
+  if (state.patternDirty && !els.suppressRegenPrompt?.checked) {
+    const ok = await openConfirm({
+      title: '丢弃当前修改？',
+      message: '应用识别结果会覆盖当前画布。继续吗？',
+      confirmText: '应用',
+      cancelText: '取消',
+    });
+    if (!ok) return;
+  }
+  const { cells, cols, rows, palette } = identifyState.preview;
+  const existing = state.palettes.find((p) => p.id === palette.id);
+  if (!existing) state.palettes.push(palette);
+  refreshPaletteSelect();
+  els.paletteSelect.value = palette.id;
+  const pattern = {
+    width: cols,
+    height: rows,
+    cells: new Int16Array(cells),
+    palette,
+    metrics: computeMetrics(cells, cols, rows, palette),
+  };
+  state.pattern = pattern;
+  state.undo = [];
+  state.redo = [];
+  state.selectedCell = null;
+  state.selectedColorIndex = pattern.metrics.countList[0]?.index ?? EMPTY;
+  state.view = fitView(pattern, els.patternCanvas);
+  state.patternDirty = false;
+  state.imageName = identifyState.imageName || state.imageName;
+  refreshAll();
+  exitIdentifyMode();
+  if (isMobileViewport()) setMobileTab('canvas');
+  toast(`已应用识别结果（${cols}×${rows}）。可继续手动调整。`, 'ok');
+}
+
+function setupIdentifyEvents() {
+  if (!els.identifyBtn) return;
+  els.identifyBtn.addEventListener('click', enterIdentifyMode);
+  els.identifyCancelBtn.addEventListener('click', exitIdentifyMode);
+  els.identifyChooseImageBtn.addEventListener('click', () => els.identifyImageInput.click());
+  els.identifyImageInput.addEventListener('change', async () => {
+    const f = els.identifyImageInput.files?.[0];
+    if (!f) return;
+    try {
+      identifyState.image = await imageBlobToElement(f);
+      identifyState.imageName = f.name;
+      identifyState.crop = { _stale: true };
+      identifyState.preview = null;
+      identifyState.selectedCell = null;
+      if (!identifyState.active) {
+        identifyState.active = true;
+        els.identifyWorkspace.hidden = false;
+        refreshIdentifyPaletteSelect();
+        els.identifyApplyBtn.disabled = true;
+        els.identifyAutoStatus.textContent = '';
+        els.identifyCellPos.textContent = '—';
+        els.identifyCellHex.textContent = '—';
+        els.identifyCellMatch.textContent = '—';
+        els.identifyOuterValue.textContent = els.identifyOuter.value;
+        els.identifyInnerValue.textContent = els.identifyInner.value;
+      }
+      layoutIdentifyImage();
+    } catch (err) {
+      toast(err.message || String(err), 'error');
+    }
+    els.identifyImageInput.value = '';
+  });
+  els.identifyAutoBtn.addEventListener('click', runIdentifyAuto);
+  els.identifyPreviewBtn.addEventListener('click', runIdentifyPreview);
+  els.identifyApplyBtn.addEventListener('click', applyIdentifyResult);
+  for (const id of ['identifyCols', 'identifyRows', 'identifyOffsetX', 'identifyOffsetY']) {
+    els[id].addEventListener('input', syncGridFromInputs);
+  }
+  for (const id of ['identifyOuter', 'identifyInner']) {
+    els[id].addEventListener('input', () => {
+      els[`${id}Value`].textContent = els[id].value;
+      if (identifyState.selectedCell != null) refreshCellPreview();
+    });
+  }
+  els.identifyPalette.addEventListener('change', () => {
+    if (identifyState.selectedCell != null) refreshCellPreview();
+    identifyState.preview = null;
+    els.identifyApplyBtn.disabled = true;
+  });
+  // 监听窗口尺寸变化，重布局
+  const ro = new ResizeObserver(() => { if (identifyState.active) layoutIdentifyImage(); });
+  ro.observe(els.identifyWorkspace);
+  setupCropBoxDrag();
 }
 
 function openAnalyzeModal() {
